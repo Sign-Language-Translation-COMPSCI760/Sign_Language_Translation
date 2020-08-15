@@ -14,6 +14,7 @@ get_vid_frames     <- reads a video frame by frame and either writes it out as j
 import cv2     # for capturing videos
 import math
 import os
+import time
 import numpy as np
 
 
@@ -126,6 +127,7 @@ def get_vid_frames(vid, indir, outdir, writejpgs=True, writenpy=True, returnnp=T
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  #seap channels to RGB
             vid_np[count] = frame
         count += 1
+        time.sleep(0.000001)
     cap.release()  #important to do this
     if writenpy:
         filename = os.path.join(outdir, basefile + ".npy")
