@@ -143,7 +143,7 @@ def get_vid_frames(vid, indir, outdir, writejpgs=True, writenpy=True, returnnp=T
 ####################################
 
     
-vid_np = vid_frames_to_jpg('Liz_10.mov', 
+vid_np = get_vid_frames('Liz_10.mov', 
                   'C:/Users/timha/OneDrive/Documents/uni/760 Data Mining and Machine Learning/GroupProj', 
                   'C:/tmp',
                   writejpgs=False,
