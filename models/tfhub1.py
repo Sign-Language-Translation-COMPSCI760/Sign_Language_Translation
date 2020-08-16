@@ -36,7 +36,9 @@ else:
 
 vid = 'Liz_10.mov'
 bs = 40              #batch size
-
+expect_img_size = 600  # EfficientNet was trained on images with resolultion 600x600 so resizing to that size
+module_url = "https://tfhub.dev/tensorflow/efficientnet/b7/feature-vector/1"   #EfficientNet b7 model expects input 600x600
+num_classes = 10
 
 # quick tf test #######################################
 a  = np.random.randn(100,200,40,3)
@@ -66,7 +68,7 @@ print(vid_np.shape, vid_np.dtype)
 plt.imshow(vid_np[4])
 print(vid_np[4, 75, 135])
 
-batch = cs760.resize_batch(vid_np, width=600, height=600, pad_type='L',
+batch = cs760.resize_batch(vid_np, width=expect_img_size, height=expect_img_size, pad_type='L',
                            inter=cv2.INTER_AREA, BGRtoRGB=False, 
                            simplenormalize=True,
                            imagenetmeansubtract=False)
@@ -76,7 +78,6 @@ print(batch[4, 75, 135])
 
 
 # tf hub test ########################
-module_url = "https://tfhub.dev/tensorflow/efficientnet/b7/feature-vector/1"   #EfficientNet b7 model expects input 600x600
 
 model = hub.KerasLayer(module_url)  # can be used like any other kera layer including in other layers...
 
@@ -103,6 +104,14 @@ if batch.shape[0] - i > 0:
 
 print(fullfeatures_tf.shape)
 
+# test as part of a model
+m = tf.keras.Sequential([
+    hub.KerasLayer(module_url,
+                   trainable=False),  # Can be True, see below.
+    tf.keras.layers.Dense(num_classes, activation='softmax')     #pretend last layer
+])
+m.build([None, expect_img_size, expect_img_size, 3])  # Batch input shape is param. Builds the model based on input shapes received so can do m.summary() etc.
+m.summary()
 
 
 
