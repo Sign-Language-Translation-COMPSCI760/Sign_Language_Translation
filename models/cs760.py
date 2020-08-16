@@ -29,6 +29,27 @@ def subtract_imagenet_mean(x):
     return x
 
 
+def resize_batch(batch, height=None, width=None, pad_type='L',
+                 inter=cv2.INTER_AREA, 
+                 BGRtoRGB=False, 
+                 simplenormalize=True,
+                 imagenetmeansubtract=False):
+    """ Resize a batch of images. Params mostly same as image_resize except that
+        batch is a np array [batch_size, h, w, c]
+    """
+    newbatch = np.zeros((batch.shape[0], height, width, batch.shape[3]), dtype=np.float32)
+    for idx, img in enumerate(batch):
+        newimg = image_resize(img, height=height, width=width, pad_type=pad_type,
+                             inter=inter, 
+                             BGRtoRGB=BGRtoRGB, 
+                             addbatchdim=False,
+                             simplenormalize=simplenormalize,
+                             imagenetmeansubtract=imagenetmeansubtract,
+                             returnasint=False)
+        newbatch[idx] = newimg
+    return newbatch
+
+
 #https://stackoverflow.com/a/44659589/429476
 # It is important to resize without losing the aspect ratio for good detection
 def image_resize(image, height=None, width=None, pad_type='L',
@@ -142,7 +163,7 @@ def get_vid_frames(vid, indir, outdir, writejpgs=True, writenpy=True, returnnp=T
 #Test routine stuff below
 ####################################
 
-    
+"""    
 vid_np = get_vid_frames('Liz_10.mov', 
                   'C:/Users/timha/OneDrive/Documents/uni/760 Data Mining and Machine Learning/GroupProj', 
                   'C:/tmp',
@@ -151,6 +172,6 @@ vid_np = get_vid_frames('Liz_10.mov',
                   returnnp=True)
 
 print(vid_np.shape, vid_np.dtype)
-
+"""
 
 
