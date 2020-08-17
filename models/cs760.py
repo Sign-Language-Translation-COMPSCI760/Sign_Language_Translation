@@ -127,12 +127,15 @@ def crop_image(img, to_x1y1x2y2):
     """ Crop a single image or a batch of images
     """
     (x1, y1, x2, y2) = to_x1y1x2y2
+    (h, w, c) = img.shape[-3:]
+    if y2 > h: y2 = h
+    if x2 > w: x2 = w 
     if len(img.shape) == 3:
         return img[y1:y2, x1:x2]
     return img[:, y1:y2, x1:x2, :]
 
 
-def get_vid_frames(vid, indir, outdir='', writejpgs=True, writenpy=True, returnnp=True):
+def get_vid_frames(vid, indir, outdir='', writejpgs=True, writenpy=True, returnnp=True, verbose=False):
     """ Write video frames out as jpgs and or a np array in a npy file
     vid: input video file name excluding path
     indir, ourdir: directory to read vid from and directory to write jpgs and/or npy into
@@ -149,6 +152,8 @@ def get_vid_frames(vid, indir, outdir='', writejpgs=True, writenpy=True, returnn
     framewidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  
     framecount = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     vid_np = np.zeros((framecount, frameheight, framewidth, 3), dtype = np.uint8)
+    if verbose:
+        print(f'{vid}: shape: {vid_np.shape}')
     while(cap.isOpened()):
         frameId = cap.get(cv2.CAP_PROP_POS_FRAMES) #current frame number
         ret, frame = cap.read()     #opencv reads channels as BGR

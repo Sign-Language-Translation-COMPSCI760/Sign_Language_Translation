@@ -5,7 +5,11 @@ Created on Mon Aug 17 14:55:04 2020
 
 @author: tim
 
-Take a directory of videos, extract features  using CNN, save features per video to a file in an output directory 
+Take a directory of videos, extract features using CNN, save features per video to a .pkl file in an output directory 
+
+Usage: (Must run from models subdirectory and first edit the config760.json file to point to your input and output directories)
+
+python extract_features.py      
 
 """
 
@@ -16,6 +20,8 @@ import matplotlib.pyplot as plt
 import cv2
 import sys
 import os
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import cs760    #opencv based utils for vid / image manipulation plus other utilities
 
@@ -59,6 +65,7 @@ for i, vid in enumerate(vids):
                       writejpgs=False,
                       writenpy=False,
                       returnnp=True)
+    #print(vid, vid_np.shape)
     outfile = os.path.splitext(vid)[0]
     if C["crop_type"] == "T":
         vid_np = cs760.crop_image(vid_np, C["crop_top"])
@@ -68,11 +75,13 @@ for i, vid in enumerate(vids):
         outfile += "__BOT.pkl"
     else:
         outfile += "__NOCROP.pkl"        
+    #print('Cropped shape: ', vid_np.shape)
         
     batch = cs760.resize_batch(vid_np, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
                            inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
                            simplenormalize=True,
                            imagenetmeansubtract=False)
+    #print('Resized shape: ', batch.shape)
     features = extract(C, model, batch)
     cs760.saveas_pickle(features, os.path.join(C["outdir"], outfile))
 
