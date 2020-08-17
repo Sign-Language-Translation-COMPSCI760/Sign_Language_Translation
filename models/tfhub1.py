@@ -36,7 +36,9 @@ else:
 
 vid = 'Liz_10.mov'
 bs = 40              #batch size
-
+expect_img_size = 600  # EfficientNet was trained on images with resolultion 600x600 so resizing to that size
+module_url = "https://tfhub.dev/tensorflow/efficientnet/b7/feature-vector/1"   #EfficientNet b7 model expects input 600x600
+num_classes = 10
 
 # quick tf test #######################################
 a  = np.random.randn(100,200,40,3)
@@ -57,16 +59,22 @@ del e
 
 vid_np = cs760.get_vid_frames(vid, 
                   filedir, 
-                  outdir,
                   writejpgs=False,
                   writenpy=False,
                   returnnp=True)
 
 print(vid_np.shape, vid_np.dtype)
 plt.imshow(vid_np[4])
+plt.imshow(cs760.crop_image(vid_np[4], (0, 15, 300, 300+15)))
+plt.imshow(cs760.crop_image(vid_np[4], (0, 356, 300, 356+300)))
+
+batch_cropped = cs760.crop_image(vid_np, [0, 15, 300, 300+15])
+print(batch_cropped.shape)
+plt.imshow(batch_cropped[4])
+
 print(vid_np[4, 75, 135])
 
-batch = cs760.resize_batch(vid_np, width=600, height=600, pad_type='L',
+batch = cs760.resize_batch(vid_np, width=expect_img_size, height=expect_img_size, pad_type='L',
                            inter=cv2.INTER_AREA, BGRtoRGB=False, 
                            simplenormalize=True,
                            imagenetmeansubtract=False)
@@ -76,7 +84,6 @@ print(batch[4, 75, 135])
 
 
 # tf hub test ########################
-module_url = "https://tfhub.dev/tensorflow/efficientnet/b7/feature-vector/1"   #EfficientNet b7 model expects input 600x600
 
 model = hub.KerasLayer(module_url)  # can be used like any other kera layer including in other layers...
 
@@ -102,6 +109,42 @@ if batch.shape[0] - i > 0:
     fullfeatures_tf = tf.concat([fullfeatures_tf, features], axis=0)
 
 print(fullfeatures_tf.shape)
+
+# test as part of a model
+m = tf.keras.Sequential([
+    hub.KerasLayer(module_url,
+                   trainable=False),  # Can be True, see below.
+    tf.keras.layers.Dense(num_classes, activation='softmax')     #pretend last layer
+])
+m.build([None, expect_img_size, expect_img_size, 3])  # Batch input shape is param. Builds the model based on input shapes received so can do m.summary() etc.
+m.summary()
+
+"""
+# generator/ sequence example
+class CIFAR10Sequence(tf.keras.utils.Sequence):
+    def __init__(self, filenames, labels, batch_size):
+        self.filenames, self.labels = filenames, labels
+        self.batch_size = batch_size
+
+    def __len__(self):
+        return int(np.ceil(len(self.filenames) / float(self.batch_size)))
+
+    def __getitem__(self, idx):
+        batch_x = self.filenames[idx * self.batch_size:(idx + 1) * self.batch_size]
+        batch_y = self.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+        return np.array([
+            resize(imread(filename), (200, 200))
+               for filename in batch_x]), np.array(batch_y)
+
+sequence = CIFAR10Sequence(filenames, labels, batch_size)
+model.fit(sequence, epochs=10)
+"""
+
+# callbacks
+# metrics
+#m.compile
+#m.fit
+#m.evaluate
 
 
 
