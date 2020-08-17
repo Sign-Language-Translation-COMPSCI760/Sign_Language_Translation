@@ -1,10 +1,15 @@
 # Sign_Language_Translation
 
+NOTE: Before pip install tensorflow you need to have the right version of cuda etc installed on your machine. Installation instructions start at: https://www.tensorflow.org/install but before actually installing read the gpu setup page and install the software prereqs for Windows or Linux: https://www.tensorflow.org/install/gpu
+
+
 Required packages (use pip install):
 
 - opencv-python
 - tensorflow (you must have tensorflow >= 2.2)
 - tensorflow_hub
+
+
 
 NOTE downloding data from videos:
 
