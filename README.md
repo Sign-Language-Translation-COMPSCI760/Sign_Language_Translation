@@ -16,6 +16,8 @@ NOTE: Before pip install tensorflow you need to have the right version of cuda e
   C:\tools\cuda\bin
 - Using what ever terminal you use to run python programs (VSCode, PowerShell, Pycharm etc), pip install tensorflow.
 
+# Model requirements
+
 Required packages (use pip install):
 
 - opencv-python
