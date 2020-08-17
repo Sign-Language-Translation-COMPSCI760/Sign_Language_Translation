@@ -6,6 +6,9 @@ Required packages (use pip install):
 - tensorflow (you must have tensorflow >= 2.2)
 - tensorflow_hub
 
+NOTE downloding data from videos:
+
+You must create a directory called "vidoes" in the dataset directory or the videos will fail to download
 
 To run CNN feature extractor:
 
