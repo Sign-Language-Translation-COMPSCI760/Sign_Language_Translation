@@ -3,7 +3,7 @@
 Created on Fri Aug 14 23:10:57 2020
 
 @author: timhartill
-Some OpenCV routines
+Some OpenCV routines PLUS other useful utilities
 
 subtract_imagenet_mean
 image_resize
@@ -16,6 +16,11 @@ import math
 import os
 import time
 import numpy as np
+import pickle
+import json
+import fnmatch
+
+
 
 
 # Imagenet mean function 
@@ -118,7 +123,16 @@ def image_resize(image, height=None, width=None, pad_type='L',
     return resized
 
 
-def get_vid_frames(vid, indir, outdir, writejpgs=True, writenpy=True, returnnp=True):
+def crop_image(img, to_x1y1x2y2):
+    """ Crop a single image or a batch of images
+    """
+    (x1, y1, x2, y2) = to_x1y1x2y2
+    if len(img.shape) == 3:
+        return img[y1:y2, x1:x2]
+    return img[:, y1:y2, x1:x2, :]
+
+
+def get_vid_frames(vid, indir, outdir='', writejpgs=True, writenpy=True, returnnp=True):
     """ Write video frames out as jpgs and or a np array in a npy file
     vid: input video file name excluding path
     indir, ourdir: directory to read vid from and directory to write jpgs and/or npy into
@@ -156,6 +170,56 @@ def get_vid_frames(vid, indir, outdir, writejpgs=True, writenpy=True, returnnp=T
     if returnnp:
         return vid_np
     return
+
+
+####################################
+#    MISC Utilities
+####################################
+    
+def saveas_pickle(obj, file):
+    """ Save python obj to file
+    """
+    with open(file,"wb") as fp:
+        pickle.dump(obj, fp)
+    return True
+
+
+def loadas_pickle(file):
+    """ Load python obj from pickle file
+    """
+    with open(file, 'rb') as fp:
+        obj = pickle.load(fp)
+    return obj     
+
+def loadas_json(file):
+    """ Load python obj from json file
+    """
+    obj = json.load(open(file))
+    return obj
+
+def saveas_json(obj, file, mode="w", indent=5, add_nl=False):
+    """ Save python object as json to file
+    default mode w = overwrite file
+            mode a = append to file
+    indent = None: all json on one line
+                0: pretty print with newlines between keys
+                1+: pretty print with that indent level
+    add_nl = True: Add a newline before outputting json. ie if mode=a typically indent=None and add_nl=True   
+    Example For outputting .jsonl (note first line doesn't add a newline before):
+        saveas_json(pararules_sample, DATA_DIR+'test_output.jsonl', mode='a', indent=None, add_nl=False)
+        saveas_json(pararules_sample, DATA_DIR+'test_output.jsonl', mode='a', indent=None, add_nl=True)
+          
+    """
+    with open(file, mode) as fp:
+        if add_nl:
+            fp.write('\n')
+        json.dump(obj, fp, indent=indent)
+    return True    
+
+def list_files_pattern(dirtolist, pattern='*'):
+    """ Returns a list of files in a dictionary matching a pattern
+    """
+    return [file for file in os.listdir(dirtolist) if fnmatch.fnmatch(file, pattern)]
 
 
 
