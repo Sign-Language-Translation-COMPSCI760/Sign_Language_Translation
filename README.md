@@ -10,9 +10,9 @@ NOTE: Before pip install tensorflow you need to have the right version of cuda e
 - Download cuDNN 7.6.0 (https://developer.nvidia.com/cuda-10.1-download-archive-base?target_os=Windows&target_arch=x86_64&target_version=10&target_type=exenetwork), this will require a Nvidia developer account to download (https://developer.nvidia.com/).
 - Move the files from cuDNN directories to the Nvidia CUDA directories of the same name (CUDA files located: "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1")
 - Edit path variables to include...
-  C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin
-  C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\extras\CUPTI\lib64
-  C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include
+  C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\bin,
+  C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\extras\CUPTI\lib64,
+  C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\include,
   C:\tools\cuda\bin
 - Using what ever terminal you use to run python programs (VSCode, PowerShell, Pycharm etc), pip install tensorflow.
 
