@@ -1,6 +1,6 @@
 {
 	"indir": "/media/tim/dl3storage/Datasets/asllrp",
-	"outdir": "/media/tim/dl3storage/tmp",
+	"outdir": "/media/tim/dl3storage/Datasets/asllrp_features",
 	"cnn_batch_size": 40,
 	"expect_img_size": 600,
 	"cnn_feat_dim" : 2560,

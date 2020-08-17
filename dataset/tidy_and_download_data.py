@@ -9,6 +9,9 @@ import requests
 from time import time
 from multiprocessing.pool import ThreadPool
 
+#TIM: was videos/
+viddir = "/media/tim/dl3storage/Datasets/asllrp/"
+
 def find_class_occurance_and_download_video(excel_file):
 
     words = {}      #key = words, value = number of occurences
@@ -51,7 +54,7 @@ def download_required(excel_file, signs):
                 if current in signs:
                     video_link = excel_file['Links seperate 1'][i][12:-9]
                     sign = current.replace("/", ".")
-                    urllib.request.urlretrieve(video_link, "videos/" + sign + "__" + str(words[current] + 1) + ".mov") 
+                    urllib.request.urlretrieve(video_link, viddir + sign + "__" + str(words[current] + 1) + ".mov") 
                     words[current] += 1 
         elif excel_file['Consultant'][i] != "------------":
                 current = excel_file['Main New Gloss'][i]
