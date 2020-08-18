@@ -39,4 +39,11 @@ To run CNN feature extractor:
 5. Ignore the various tensorflow messages, eventually the program will start processing videos. Each vid takes around 10 secs to process on my machine.
 
 
+To create train/val/test split:
+1. cd to your models subdirectory
+2. Make sure the 'outdir' key in cs760.json points to the directory that the CNN feature extractor put the feature files into on your machine.
+3. python train_val_test_split.py
+4. The program will create subdirectories /train, /val, and /test under 'outdir' and copy (not move) the feature files into the respective subdirectories.
+5. You should end up with 56 files in test, 1570 files in train and 84 files in val assuming you have run the CNN Feature extractor with crop_type "B" as well as crop_type "T".
+
 
