@@ -38,10 +38,11 @@ os.makedirs(valdir, exist_ok=True)        #if dir already exists will continue a
 print(f'Creating TEST Dir: {testdir}')
 os.makedirs(testdir, exist_ok=True)        #if dir already exists will continue and WILL NOT delete existing files in that directory
 
-random.seed(42)                     #this should make it reproducable
 feat_files = cs760.list_files_pattern(C["outdir"], '*.pkl')
 #print(f"Input Feature files: {feat_files}")
 
+feat_files.sort()
+random.seed(42)                     #this should make it reproducable
 
 
 # build dict of [files] for each sign
