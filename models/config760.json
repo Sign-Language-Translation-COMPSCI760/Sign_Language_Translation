@@ -5,7 +5,7 @@
 	"expect_img_size": 600,
 	"cnn_feat_dim" : 2560,
 	"module_url": "https://tfhub.dev/tensorflow/efficientnet/b7/feature-vector/1",
-	"crop_type": "T",
+	"crop_type": "B",
 	"crop_top" : [0, 15, 300, 315],
 	"crop_bottom": [0, 356, 300, 656]
 	
