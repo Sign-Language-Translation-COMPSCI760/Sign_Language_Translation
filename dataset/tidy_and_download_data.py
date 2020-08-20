@@ -1,13 +1,5 @@
-from openpyxl import load_workbook
 import urllib.request
 import pandas as pd
-import math
-import csv
-
-import os
-import requests
-from time import time
-from multiprocessing.pool import ThreadPool
 
 #TIM: was videos/
 viddir = "/media/tim/dl3storage/Datasets/asllrp/"
@@ -63,7 +55,6 @@ def download_required(excel_file, signs):
 def main():
     
     excel_file = pd.read_excel("dai-asllvd-BU_glossing_with_variations_HS_information-extended-urls-RU.xlsx", sheet_name="Sheet1")
-    #print(excel_file)
 
     signs = find_class_occurance_and_download_video(excel_file) # Outputs a csv containing all the different signs and how many times they are signed in videos (in the dataset). Downloads and sanitisies video names and stores them in a video folder.
     download_required(excel_file, signs)
