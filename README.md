@@ -30,7 +30,7 @@ Required packages (use pip install):
 
 NOTE downloding data from videos:
 
-You must create a directory called "vidoes" in the dataset directory or the videos will fail to download
+You must create a directory called "features" and "videos" in the dataset directory if you want to use the default locations. (Will be fixed with final setup)
 
 To run CNN feature extractor:
 
