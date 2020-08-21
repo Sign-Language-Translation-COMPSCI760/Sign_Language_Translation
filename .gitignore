@@ -1,8 +1,10 @@
 # Ignore files
 *.mov
 *.pkl
+*.pyc
 config760_timbackup.json
 
 # Ignore directories
 features/
 dataset/videos/
+__pycache__
