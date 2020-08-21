@@ -21,6 +21,8 @@ import cv2
 import sys
 import os
 
+from vidaug import augmentors as va
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import cs760    #opencv based utils for vid / image manipulation plus other utilities
@@ -43,51 +45,62 @@ def extract(C, model, batch):
         fullfeatures_tf = tf.concat([fullfeatures_tf, features], axis=0)
     return fullfeatures_tf.numpy()
 
+def main():
 
-C = cs760.loadas_json('config760.json')
-print("Running with parameters:", C)
+    C = cs760.loadas_json('config760.json')
+    print("Running with parameters:", C)
 
-print(f'Reading videos from {C["indir"]}')
-print(f'Outputting features to {C["outdir"]}')
+    print(f'Reading videos from {C["indir"]}')
+    print(f'Outputting features to {C["outdir"]}')
 
-print("Loading pretrained CNN...")
-model = hub.KerasLayer(C["module_url"])  # can be used like any other kera layer including in other layers...
-print("Pretrained CNN Loaded OK")
+    print("Loading pretrained CNN...")
+    model = hub.KerasLayer(C["module_url"])  # can be used like any other kera layer including in other layers...
+    print("Pretrained CNN Loaded OK")
 
 
 
-vids = cs760.list_files_pattern(C["indir"], '*.mov')
-print(f'Processing {len(vids)} videos...')
-for i, vid in enumerate(vids):
-    print(f'{i} Processing: {vid}')    
-    vid_np = cs760.get_vid_frames(vid, 
-                      C["indir"], 
-                      writejpgs=False,
-                      writenpy=False,
-                      returnnp=True)
-    #print(vid, vid_np.shape)
-    outfile = os.path.splitext(vid)[0]
-    if C["crop_type"] == "T":
-        vid_np = cs760.crop_image(vid_np, C["crop_top"])
-        outfile += "__TOP.pkl"
-    elif  C["crop_type"] == "B":
-        vid_np = cs760.crop_image(vid_np, C["crop_bottom"])
-        outfile += "__BOT.pkl"
-    else:
-        outfile += "__NOCROP.pkl"        
-    #print('Cropped shape: ', vid_np.shape)
+    vids = cs760.list_files_pattern(C["indir"], '*.mov')
+    print(f'Processing {len(vids)} videos...')
+    for i, vid in enumerate(vids):
+        print(f'{i} Processing: {vid}')    
+        vid_np = cs760.get_vid_frames(vid, 
+                        C["indir"], 
+                        writejpgs=False,
+                        writenpy=False,
+                        returnnp=True)
+        #print(vid, vid_np.shape)
+        outfile = os.path.splitext(vid)[0]
+        if C["crop_type"] == "T":
+            vid_np = cs760.crop_image(vid_np, C["crop_top"])
+            outfile += "__TOP.pkl"
+        elif  C["crop_type"] == "B":
+            vid_np = cs760.crop_image(vid_np, C["crop_bottom"])
+            outfile += "__BOT.pkl"
+        else:
+            outfile += "__NOCROP.pkl"        
+        #print('Cropped shape: ', vid_np.shape)
+            
+        batch = cs760.resize_batch(vid_np, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
+                            inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
+                            simplenormalize=True,
+                            imagenetmeansubtract=False)
+        #print('Resized shape: ', batch.shape)
         
-    batch = cs760.resize_batch(vid_np, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
-                           inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
-                           simplenormalize=True,
-                           imagenetmeansubtract=False)
-    #print('Resized shape: ', batch.shape)
-    features = extract(C, model, batch)
-    cs760.saveas_pickle(features, os.path.join(C["outdir"], outfile))
+        sometimes = lambda aug: va.Sometimes(0.3, aug) # set augmentation 30% of the time
+        seq = va.Sequential([ # define augmentation steps
+            sometimes(va.HorizontalFlip()), # horizontally flips video
+            sometimes(va.InvertColor()), # inverts video colours
+            sometimes(va.VerticalFlip()) # vertically flips video
+        ])
+        video_aug = seq(batch) # augments frams
+        new_batch = np.array(video_aug) # Converts the augmented video into supported batch format
 
-print('Finished outputting features!!')
+        features = extract(C, model, new_batch)
+        cs760.saveas_pickle(features, os.path.join(C["outdir"], outfile))
 
-#tst = cs760.loadas_pickle(os.path.join(C["outdir"], os.path.splitext(vid)[0] + '.pkl'))
+    print('Finished outputting features!!')
+
+main()
 
 
 
