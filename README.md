@@ -26,6 +26,7 @@ Required packages (use pip install):
 - numpy
 - matplotlib
 - git+https://github.com/okankop/vidaug
+- scikit-image
 
 NOTE downloding data from videos:
 
