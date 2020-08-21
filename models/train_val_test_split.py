@@ -7,8 +7,7 @@ Created on Tue Aug 18 13:08:58 2020
 
 Create train / val/ test splits
 
-NOTE: This script will assume the input feature files are in the directory specified in config760.json "outdir" key i.e. C['outdir']
-      and it will create /train, /val, and /test subdirectories underneath the 'outdir' subdirectory
+NOTE: This script will create /train, /val, and /test subdirectories in the feature subdirectory (Specified as a command line argument or set by default)
       
       It will NOT remove the existing contents of directories before use so before running manually delete /train, /val, and /test
 
@@ -22,12 +21,22 @@ import shutil
 
 import cs760    #opencv based utils for vid / image manipulation plus other utilities
 
+try:
+    video_directory = sys.argv[1] # intput video files
+    feature_directory = sys.argv[2] # output feature files
+except:
+    print("Video and feature directories not specified, setting them to default locations")
+    print("Video locations: ../dataset/videos")
+    print("Feature locations: ../features")
+    video_directory = "../dataset/videos"
+    feature_directory = "../features"
+
 C = cs760.loadas_json('config760.json')
 print("Running with parameters:", C)
 
-traindir = os.path.join(C["outdir"], "train")
-valdir = os.path.join(C["outdir"], "val")
-testdir = os.path.join(C["outdir"], "test")
+traindir = os.path.join(feature_directory, "train")
+valdir = os.path.join(feature_directory, "val")
+testdir = os.path.join(feature_directory, "test")
 
 print(f'Creating TRAIN Dir: {traindir}')
 os.makedirs(traindir, exist_ok=True)        #if dir already exists will continue and WILL NOT delete existing files in that directory
@@ -38,7 +47,7 @@ os.makedirs(valdir, exist_ok=True)        #if dir already exists will continue a
 print(f'Creating TEST Dir: {testdir}')
 os.makedirs(testdir, exist_ok=True)        #if dir already exists will continue and WILL NOT delete existing files in that directory
 
-feat_files = cs760.list_files_pattern(C["outdir"], '*.pkl')
+feat_files = cs760.list_files_pattern(feature_directory, '*.pkl')
 #print(f"Input Feature files: {feat_files}")
 
 feat_files.sort()
@@ -83,12 +92,12 @@ for k in curr_sign_dict:
             var_idx = file.rfind('__')
             if file[:var_idx] == firstpart:             #copy all the varieties of that file to test/val to avoid contamination even though we'll only use the 'top' entry for actual val/test
                 print(f'Copying {file} to {outdir}')
-                shutil.copy(os.path.join(C["outdir"], file), outdir)
+                shutil.copy(os.path.join(feature_directory, file), outdir)
                 curr_file_list[i] = '_DONE_'
     for file in curr_file_list:                         # copy all remaining files to traindir
         if file != '_DONE_':
             print(f'Copying {file} to {traindir}')
-            shutil.copy(os.path.join(C["outdir"], file), traindir)
+            shutil.copy(os.path.join(feature_directory, file), traindir)
 print('Finished! (yay)')
 
 
