@@ -47,24 +47,33 @@ def extract(C, model, batch):
 
 def main():
 
+    try:
+        video_directory = sys.argv[1] # intput video files
+        feature_directory = sys.argv[2] # output feature files
+    except:
+        print("Video and feature directories not specified, setting them to default locations")
+        print("Video locations: ../dataset/videos")
+        print("Feature locations: ../features")
+        video_directory = "../dataset/videos"
+        feature_directory = "../features"
+
+    #print(type(feature_directory))
     C = cs760.loadas_json('config760.json')
     print("Running with parameters:", C)
 
-    print(f'Reading videos from {C["indir"]}')
-    print(f'Outputting features to {C["outdir"]}')
+    print("Reading videos from " + video_directory)
+    print("Outputting features to " + feature_directory)
 
     print("Loading pretrained CNN...")
     model = hub.KerasLayer(C["module_url"])  # can be used like any other kera layer including in other layers...
     print("Pretrained CNN Loaded OK")
 
-
-
-    vids = cs760.list_files_pattern(C["indir"], '*.mov')
+    vids = cs760.list_files_pattern(video_directory, '*.mov')
     print(f'Processing {len(vids)} videos...')
     for i, vid in enumerate(vids):
         print(f'{i} Processing: {vid}')    
         vid_np = cs760.get_vid_frames(vid, 
-                        C["indir"], 
+                        video_directory, 
                         writejpgs=False,
                         writenpy=False,
                         returnnp=True)
@@ -89,14 +98,15 @@ def main():
         sometimes = lambda aug: va.Sometimes(0.3, aug) # set augmentation 30% of the time
         seq = va.Sequential([ # define augmentation steps
             sometimes(va.HorizontalFlip()), # horizontally flips video
-            sometimes(va.InvertColor()), # inverts video colours
+            #sometimes(va.InvertColor()) TODO: Fix numpy error
             sometimes(va.VerticalFlip()) # vertically flips video
         ])
-        video_aug = seq(batch) # augments frams
+
+        video_aug = seq(batch) # augments frames
         new_batch = np.array(video_aug) # Converts the augmented video into supported batch format
 
         features = extract(C, model, new_batch)
-        cs760.saveas_pickle(features, os.path.join(C["outdir"], outfile))
+        cs760.saveas_pickle(features, os.path.join(feature_directory, outfile))
 
     print('Finished outputting features!!')
 
