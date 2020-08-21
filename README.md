@@ -25,6 +25,7 @@ Required packages (use pip install):
 - tensorflow_hub
 - numpy
 - matplotlib
+- git+https://github.com/okankop/vidaug
 
 NOTE downloding data from videos:
 
