@@ -1,6 +1,4 @@
 {
-	"indir": "../dataset/videos",
-	"outdir": "../features",
 	"cnn_batch_size": 40,
 	"expect_img_size": 600,
 	"cnn_feat_dim" : 2560,
