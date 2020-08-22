@@ -2,7 +2,11 @@
 *.mov
 *.pkl
 *.pyc
+*.mp4
 config760_timbackup.json
+config_dirs_tim.json
+extract_features_timbackup.py
+train_val_test_split_timbackup.py
 
 # Ignore directories
 features/
