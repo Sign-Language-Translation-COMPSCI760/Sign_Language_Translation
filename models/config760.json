@@ -5,6 +5,23 @@
 	"module_url": "https://tfhub.dev/tensorflow/efficientnet/b7/feature-vector/1",
 	"crop_type": "B",
 	"crop_top" : [0, 15, 300, 315],
-	"crop_bottom": [0, 356, 300, 656]
-	
+	"crop_bottom": [0, 356, 300, 656],
+	"s2_traintypes": ["__TOP", "__BOT"],
+	"s2_valtypes": ["__TOP"],
+	"s2_testtypes": ["__TOP"],
+	"s2_batch_size_train": 10,
+	"s2_batch_size_val": 10,
+	"s2_batch_size_test": 10,
+	"s2_max_seq_len" : 32,
+	"s2_take_frame" : 4,
+	"s2_dropout" : 0.1,
+	"s2_min_lr" : 0.000001,
+	"s2_patience" : 6,
+	"s2_factor" : 0.5,
+	"s2_monitor" : "val_accuracy",
+	"s2_mindelta" : 0.0001,
+	"s2_stop_patience" : 13,
+	"s2_lr" : 0.0005,
+	"s2_max_epochs" : 500,
+	"sign_classes" : ["WORK-OUT", "INFORM", "LOOK", "SHOW", "BOSS", "NICE.CLEAN", "DRESS.CLOTHES", "COLLECT", "FINGERSPELL", "FED-UP.FULL", "VACATION", "DECREASE", "GUITAR", "SHELF.FLOOR", "MACHINE", "DEVELOP", "SAME", "DRIP", "DEVIL.MISCHIEVOUS", "CUTE", "COME", "PAST", "CITY.COMMUNITY", "ADVISE.INFLUENCE", "FIRE.BURN", "ANSWER", "DISCUSS", "GET-TICKET", "AGAIN", "CHAT", "MAD", "BOWTIE", "EXCUSE", "FACE", "EMPHASIZE", "CAMP", "COPY", "BLAME", "WEEKEND", "BIG", "EXPERT", "DOCTOR", "DATE.DESSERT", "INJECT", "FIFTH", "RUN", "APPOINTMENT", "HAPPY", "MARRY", "DEPRESS", "SILLY", "GROUND", "GOLD.ns-CALIFORNIA", "DISAPPOINT", "REPLACE", "STAND-UP", "ART.DESIGN", "CANCEL.CRITICIZE", "AFRAID", "GO", "EAT", "WALK", "ISLAND.INTEREST", "IN", "GOVERNMENT", "COP", "DRINK", "INCLUDE.INVOLVE", "LIVE", "TOUGH"]
 }
