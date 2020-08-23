@@ -21,12 +21,18 @@ import sys
 import os
 import copy
 import random
-from sklearn.metrics import accuracy_score
 
 import cs760
+import model_transformer
 
 
-
+def rand_seed_all(seed=42):
+    """ Attempt to make results reproducible
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+    return
 
 class Features_in(tf.keras.utils.Sequence):
     """ Return a batch of samples for model input. Called from .fit(...).
@@ -53,6 +59,7 @@ class Features_in(tf.keras.utils.Sequence):
         patterns = ['*' + pattern + '.pkl' for pattern in filepattern]    
         self.filenames = cs760.list_files_multipatterns(self.input_dir, patterns)
         if shuffle:
+            rand_seed_all(C["s2_random_seed"])  #should now get same results when run with same random seed.
             random.shuffle(self.filenames)
             
         labels = []            
@@ -134,20 +141,52 @@ def get_fc_model(C):
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(2560*C["s2_max_seq_len"] // 16, activation='relu'),
             tf.keras.layers.Dropout(C["s2_dropout"]),
+            tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Dense((2560*C["s2_max_seq_len"]) //16, activation='relu'),
             tf.keras.layers.Dropout(C["s2_dropout"]),
+            tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Dense((2560*C["s2_max_seq_len"]) // 16, activation='relu'),
             tf.keras.layers.Dense(C["num_classes"], activation='softmax')     
     ])  
     
+    opt = tf.keras.optimizers.Adam(learning_rate=C["s2_lr"])  # adam default = 0.001
+    
     m.compile(  loss="categorical_crossentropy",
-                optimizer="adam",
+                optimizer=opt,
                 metrics=['accuracy'])
+    print(m.summary())
+    return m
+
+
+def get_transclassifier_model(C):
+    """ Classifying Transformer model
+    """    
+    m = tf.keras.Sequential([
+            tf.keras.layers.Input(shape=(C["s2_max_seq_len"], 2560)),
+            model_transformer.TransformerEncoder(encoder_count=C["s2_encoder_count"],
+                                                 attention_head_count=8, 
+                                                 d_model=2560, 
+                                                 dropout_prob=C["s2_dropout"], 
+                                                 add_pos_enc=C["s2_add_pos_enc"]),
+            tf.keras.layers.Flatten(),
+#            tf.keras.layers.Dropout(C["s2_dropout"]),
+            tf.keras.layers.BatchNormalization(),   #less variation when this line is here but don't get the really good accuracies (0.5)
+#            tf.keras.layers.Dense((2560*C["s2_max_seq_len"]) // 16, activation='relu'),
+            tf.keras.layers.Dense(C["num_classes"], activation='softmax')     
+    ])  
+    
+    opt = tf.keras.optimizers.Adam(learning_rate=C["s2_lr"])  # adam default = 0.001
+    
+    m.compile(  loss="categorical_crossentropy",
+                optimizer=opt,
+                metrics=['accuracy'])
+    print(m.summary())
     return m
     
 
 
 if __name__ == '__main__':
+    
     try:
         config_dirs_file = sys.argv[1] # directories file
         config_file = sys.argv[2]      # main params file
@@ -190,8 +229,13 @@ if __name__ == '__main__':
     #tstbatch = testgen.__getitem__(0)
     #print("Input x", tstbatch[0].shape, tstbatch[0].dtype)
     #print("Labels y", tstbatch[1].shape, tstbatch[1].dtype)
-
-    m = get_fc_model(C)
+    
+    if C["s2_model_type"] == "fc1":
+        m = get_fc_model(C)
+    elif C["s2_model_type"] == "tc1":
+        m = get_transclassifier_model(C)
+    else:
+        assert True==False, f"ERROR: Unknown s2_model_type in config file: {C['s2_model_type']}. Must be one of fc1 or tc1"
     
     # NOTE: to restore a previously trained model:
     #m = keras.models.load_model(a_checkpoint_file)
@@ -239,11 +283,11 @@ if __name__ == '__main__':
     
     plots(history)
     
-    best_epoch = np.argmax(history.history['val_accuracy'])
+    best_epoch = np.argmax(history.history['val_accuracy'])  # history is zero-based but keras screen output 1st epoch is epoch 1
     print()
     print("#######################################################")
-    print(f"Training Best Epoch: {best_epoch}  Train Acc: {history.history['accuracy'][best_epoch]} Val Acc:{history.history['val_accuracy'][best_epoch]}")
-    print(f"Best Epoch: {best_epoch}")   
+    print(f"Training Best Epoch: {best_epoch+1}  Train Acc: {history.history['accuracy'][best_epoch]} Val Acc:{history.history['val_accuracy'][best_epoch]}")
+    print(f"Best Epoch (1-based): {best_epoch+1}")   
     print("#######################################################")
     print()
     
