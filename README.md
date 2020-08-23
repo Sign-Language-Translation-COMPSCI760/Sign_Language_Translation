@@ -32,7 +32,7 @@ NOTE downloding data from videos:
 
 You must create a directory called "features" and "videos" in the dataset directory if you want to use the default locations. (Will be fixed with final setup)
 
-To run CNN feature extractor:
+# To run CNN feature extractor:
 
 1. cd to your models subdirectory
 2. In config760.json, setting "crop_type": "T" (default) means crop vids to the top (front view) of each image and "B" crops to the bottom (side view). To get both you need to run the program twice, once for each crop type.
@@ -40,14 +40,14 @@ To run CNN feature extractor:
 5. Ignore the various tensorflow messages, eventually the program will start processing videos. Each vid takes around 10 secs to process on my machine.
 
 
-To create train/val/test split:
+# To create train/val/test split:
 1. cd to your models subdirectory
 3. python train_val_test_split.py video_directory feature_directory, the video and feature arguments are the location of the video and feature files. If one is missing or both are missing then the arguments will default to the self contained directories "../dataset/videos", "../features".
 4. The program will create subdirectories /train, /val, and /test under feature_directory and copy (not move) the feature files into the respective subdirectories.
 5. You should end up with 56 files in test, 1570 files in train and 84 files in val assuming you have run the CNN Feature extractor with crop_type "B" as well as crop_type "T".
 
 
-To run/view stage 2 model (takes under 10 minutes to fully train and run evaluation):
+# To run/view stage 2 model (takes under 10 minutes to fully train and run evaluation):
 
 Before doing anything, I suggest looking at the stage2model.py code in conjunction with looking at config760.json so you can see what it's doing. The majority of your questions around what the keras and tensorflo bits are doing can probably be answered by looking at https://www.tensorflow.org/guide/keras/train_and_evaluate and otherwise googling for other parts of the tensorflow documentation. The trickiest bit is probably the class Features_in(tf.keras.utils.Sequence) - googling tf.keras.utils.Sequence and/or tf.fit will likely give you the idea of how this works.
 
