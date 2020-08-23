@@ -7,10 +7,19 @@ Created on Sat Aug 22 14:40:07 2020
 
 Stage 2 Model
 
-Usage: from models subdir:
+Usage: Run from models subdirectory. 
+
+    First take a copy of config_dirs.json as eg configdirs_yourname.json.
+    Edit configdirs_yourname.json to set directories appropriately. 
+    Particularly, set the "outdir" key to the root directory that train_val_test_split.py created /train /val and /test from. 
     
+    To run transformer classifier:
+        
     python stage2model.py config_dirs_yourname.json config760.json
 
+    To run fully connected NN classifier:
+        
+    python stage2model.py config_dirs_yourname.json config760_fc1.json
 
 """
 
@@ -93,9 +102,9 @@ class Features_in(tf.keras.utils.Sequence):
         for file in batch_x:
             sample = cs760.loadas_pickle(os.path.join(self.input_dir, file))
             sample = sample[0::C["s2_take_frame"]]        # only take every nth frame
-            if sample.shape[0] > self.maxseqlen:          #truncate features to maxseqlen
+            if sample.shape[0] > self.maxseqlen:          # truncate features to maxseqlen
                 sample = sample[0:self.maxseqlen]
-            elif sample.shape[0] < self.maxseqlen:        #pad features to maxseqlen
+            elif sample.shape[0] < self.maxseqlen:        # pad features to maxseqlen
                 sample_padded = np.zeros((self.maxseqlen, 2560), dtype=np.float32)
                 sample_padded[0:sample.shape[0]] = sample
                 sample = sample_padded
