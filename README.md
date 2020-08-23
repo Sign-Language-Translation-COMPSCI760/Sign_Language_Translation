@@ -47,3 +47,24 @@ To create train/val/test split:
 5. You should end up with 56 files in test, 1570 files in train and 84 files in val assuming you have run the CNN Feature extractor with crop_type "B" as well as crop_type "T".
 
 
+To run/view stage 2 model (takes under 10 minutes to fully train and run evaluation):
+
+Before doing anything, I suggest looking at the stage2model.py code in conjunction with looking at config760.json so you can see what it's doing. The majority of your questions around what the keras and tensorflo bits are doing can probably be answered by looking at https://www.tensorflow.org/guide/keras/train_and_evaluate and otherwise googling for other parts of the tensorflow documentation. The trickiest bit is probably the class Features_in(tf.keras.utils.Sequence) - googling tf.keras.utils.Sequence and/or tf.fit will likely give you the idea of how this works.
+
+To actually run training/eval:
+
+1. Run from models subdirectory. 
+
+2. First take a copy of config_dirs.json as eg configdirs_yourname.json.
+   Edit configdirs_yourname.json to set directories appropriately. 
+   Particularly, set the "outdir" key to the root directory that train_val_test_split.py created /train /val and /test from. 
+    
+3. To run transformer classifier with a reasonable set of parameters:
+        
+    python stage2model.py config_dirs_yourname.json config760.json
+
+4. To run fully connected NN classifier with a reasonable set of parameters:
+        
+    python stage2model.py config_dirs_yourname.json config760_fc1.json
+
+
