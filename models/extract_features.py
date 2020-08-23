@@ -59,6 +59,10 @@ def main():
 
     #print(type(feature_directory))
     C = cs760.loadas_json('config760.json')
+
+    sometimes = lambda aug: va.Sometimes(C["augmentation_chance"][0], aug) # set augmentation 100% of the time
+    sequential_list = [va.Sequential([sometimes(va.HorizontalFlip())]), va.Sequential([va.RandomRotate(degrees=10)])]
+
     print("Running with parameters:", C)
 
     print("Reading videos from " + video_directory)
@@ -70,6 +74,7 @@ def main():
 
     vids = cs760.list_files_pattern(video_directory, '*.mov')
     print(f'Processing {len(vids)} videos...')
+
     for i, vid in enumerate(vids):
         print(f'{i} Processing: {vid}')    
         vid_np = cs760.get_vid_frames(vid, 
@@ -94,19 +99,17 @@ def main():
                             simplenormalize=True,
                             imagenetmeansubtract=False)
         #print('Resized shape: ', batch.shape)
-        
-        sometimes = lambda aug: va.Sometimes(0.3, aug) # set augmentation 30% of the time
-        seq = va.Sequential([ # define augmentation steps
-            sometimes(va.HorizontalFlip()), # horizontally flips video
-            #sometimes(va.InvertColor()) TODO: Fix numpy error
-            sometimes(va.VerticalFlip()) # vertically flips video
-        ])
 
-        video_aug = seq(batch) # augments frames
-        new_batch = np.array(video_aug) # Converts the augmented video into supported batch format
+        for n in range((len(sequential_list) + 1)):
+            if n == 0:
+                new_batch = batch
+            else:
+                video_aug = sequential_list[n - 1](batch) # augments frames
+                new_batch = np.array(video_aug) # Converts the augmented video into supported batch format
+                outfile = outfile[:-4] + C["augmentation_type"][n - 1] + ".pkl"
 
-        features = extract(C, model, new_batch)
-        cs760.saveas_pickle(features, os.path.join(feature_directory, outfile))
+            features = extract(C, model, new_batch)
+            cs760.saveas_pickle(features, os.path.join(feature_directory, outfile))
 
     print('Finished outputting features!!')
 
