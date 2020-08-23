@@ -102,14 +102,14 @@ def main():
 
         for n in range((len(sequential_list) + 1)):
             if n == 0:
-                new_batch = batch
+                features = extract(C, model, batch)
+                cs760.saveas_pickle(features, os.path.join(feature_directory, outfile))
             else:
                 video_aug = sequential_list[n - 1](batch) # augments frames
                 new_batch = np.array(video_aug) # Converts the augmented video into supported batch format
-                outfile = outfile[:-4] + C["augmentation_type"][n - 1] + ".pkl"
-
-            features = extract(C, model, new_batch)
-            cs760.saveas_pickle(features, os.path.join(feature_directory, outfile))
+                temp_outfile = outfile[:-4] + C["augmentation_type"][n - 1] + ".pkl"
+                features = extract(C, model, new_batch)
+                cs760.saveas_pickle(features, os.path.join(feature_directory, temp_outfile))
 
     print('Finished outputting features!!')
 
