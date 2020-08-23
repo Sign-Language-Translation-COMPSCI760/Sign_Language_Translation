@@ -226,7 +226,13 @@ def list_files_pattern(dirtolist, pattern='*'):
     """
     return [file for file in os.listdir(dirtolist) if fnmatch.fnmatch(file, pattern)]
 
-
+def list_files_multipatterns(dirtolist, patternlist = ['*']):
+    """ Returns a list of files in a directory matching one of a list of patterns
+    """
+    files = []
+    for pattern in patternlist:
+        files += list_files_pattern(dirtolist, pattern)
+    return files
 
 ####################################
 #Test routine stuff below
