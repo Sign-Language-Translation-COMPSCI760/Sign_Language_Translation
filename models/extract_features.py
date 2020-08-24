@@ -7,9 +7,9 @@ Created on Mon Aug 17 14:55:04 2020
 
 Take a directory of videos, extract features using CNN, save features per video to a .pkl file in an output directory 
 
-Usage: (Must run from models subdirectory and first edit the config760.json file to point to your input and output directories)
+Usage: (Must run from models subdirectory and first edit the config_dirs.json file to point to your input and output directories)
 
-python extract_features.py      
+python extract_features.py config_dirs.json config760.json   
 
 """
 
@@ -49,18 +49,39 @@ def extract(C, model, batch):
 
 def main():
 
-    try:
-        video_directory = sys.argv[1] # intput video files
-        feature_directory = sys.argv[2] # output feature files
-    except:
-        print("Video and feature directories not specified, setting them to default locations")
-        print("Video locations: ../dataset/videos")
-        print("Feature locations: ../features")
-        video_directory = "../dataset/videos"
-        feature_directory = "../features"
+#    try:
+#        video_directory = sys.argv[1] # intput video files
+#        feature_directory = sys.argv[2] # output feature files
+#    except:
+#        print("Video and feature directories not specified, setting them to default locations")
+#        print("Video locations: ../dataset/videos")
+#        print("Feature locations: ../features")
+#        video_directory = "../dataset/videos"
+#        feature_directory = "../features"
 
+    try:
+        config_dirs_file = sys.argv[1] # directories file
+        config_file = sys.argv[2]      # main params file
+    except:
+        print("Config file names not specified, setting them to default namess")
+        config_dirs_file = "config_dirs.json"
+        config_file = "config760.json"
+    print(f'USING CONFIG FILES: config dirs:{config_dirs_file}  main config:{config_file}')    
+    
     #print(type(feature_directory))
     C = cs760.loadas_json('config760.json')
+    print("Running with parameters:", C)
+    
+    Cdirs = cs760.loadas_json(config_dirs_file)
+    print("Directories:", Cdirs)
+    
+    C['dirs'] = Cdirs
+    video_directory = C['dirs']['indir']
+    feature_directory = C['dirs']['outdir']
+    
+    print(f'Creating feature file Dir: {feature_directory}')
+    os.makedirs(feature_directory, exist_ok=True)        #if dir already exists will continue and WILL NOT delete existing files in that directory
+
 
     sometimes = lambda aug: iaa.Sometimes(C["augmentation_chance"][0], aug)
     sequential_list = [iaa.Sequential([sometimes(iaa.Fliplr(1.0))]), # horizontal flip
@@ -74,7 +95,6 @@ def main():
     iaa.Sequential([sometimes(iaa.Invert(1))]) # invert colours
     ]
 
-    print("Running with parameters:", C)
 
     print("Reading videos from " + video_directory)
     print("Outputting features to " + feature_directory)

@@ -1,6 +1,6 @@
 {
 	"indir": "/media/tim/dl3storage/Datasets/asllrp",
-	"outdir": "/media/tim/dl3storage/Datasets/asllrp_features",
+	"outdir": "/media/tim/dl3storage/Datasets/asllrp_features_aug",
 	"ckpts" : "/media/tim/dl3storage/tmp",
 	"tensorboard" : "/media/tim/dl3storage/tmp"
 }
