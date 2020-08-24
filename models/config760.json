@@ -7,7 +7,7 @@
 	"crop_top" : [0, 15, 300, 315],
 	"crop_bottom": [0, 356, 300, 656],
 	"augmentation_chance": [1],
-	"augmentation_type": ["__HFLIP", "__ROTAT10"],
+	"augmentation_type": ["__HFLIP", "__ROTAT", "__CROP", "__BRIGHT", "__HUE", "__SATUR", "__CONTOUR", "__NOISE", "__INVERT"],
 	"s2_traintypes": ["__TOP", "__BOT"],
 	"s2_valtypes": ["__TOP"],
 	"s2_testtypes": ["__TOP"],
