@@ -21,7 +21,9 @@ import cv2
 import sys
 import os
 
-from vidaug import augmentors as va
+import numpy as np
+
+import imgaug.augmenters as iaa
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -60,8 +62,17 @@ def main():
     #print(type(feature_directory))
     C = cs760.loadas_json('config760.json')
 
-    sometimes = lambda aug: va.Sometimes(C["augmentation_chance"][0], aug) # set augmentation 100% of the time
-    sequential_list = [va.Sequential([sometimes(va.HorizontalFlip())]), va.Sequential([va.RandomRotate(degrees=10)])]
+    sometimes = lambda aug: iaa.Sometimes(C["augmentation_chance"][0], aug)
+    sequential_list = [iaa.Sequential([sometimes(iaa.Fliplr(1.0))]), # horizontal flip
+    iaa.Sequential([sometimes(iaa.Rotate(-5, 5))]), # rotate 5 degrees +/-
+    iaa.Sequential([sometimes(iaa.CenterCropToAspectRatio(1.15))]),
+    iaa.Sequential([sometimes(iaa.MultiplyBrightness((2.0, 2.0)))]), # increase brightness
+    iaa.Sequential([sometimes(iaa.MultiplyHue((0.5, 1.5)))]), # change hue random
+    iaa.Sequential([sometimes(iaa.RemoveSaturation(1.0))]), # effectively greyscale
+    iaa.Sequential([sometimes(iaa.pillike.FilterContour())]), # edge detection
+    iaa.Sequential([sometimes(iaa.AdditiveLaplaceNoise(scale=0.05*255, per_channel=True))]), # add colourful noise
+    iaa.Sequential([sometimes(iaa.Invert(1))]) # invert colours
+    ]
 
     print("Running with parameters:", C)
 
@@ -82,41 +93,42 @@ def main():
                         writejpgs=False,
                         writenpy=False,
                         returnnp=True)
+
         #print(vid, vid_np.shape)
         outfile = os.path.splitext(vid)[0]
-        if C["crop_type"] == "T":
-            vid_np = cs760.crop_image(vid_np, C["crop_top"])
-            outfile += "__TOP.pkl"
-        elif  C["crop_type"] == "B":
-            vid_np = cs760.crop_image(vid_np, C["crop_bottom"])
-            outfile += "__BOT.pkl"
-        else:
-            outfile += "__NOCROP.pkl"        
-        #print('Cropped shape: ', vid_np.shape)
-            
-        batch = cs760.resize_batch(vid_np, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
-                            inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
-                            simplenormalize=True,
-                            imagenetmeansubtract=False)
-        #print('Resized shape: ', batch.shape)
+
+        vid_np_top = cs760.crop_image(vid_np, C["crop_top"])
+        outfile_top = outfile + "__TOP.pkl"
+        vid_np_bot = cs760.crop_image(vid_np, C["crop_bottom"])
+        outfile_bot = outfile + "__BOT.pkl"  
 
         for n in range((len(sequential_list) + 1)):
-            if n == 0:
+            if n != 0:
+                vid_aug = sequential_list[n - 1](images=vid_np_top) # augments frames
+                if type(vid_aug) is list:
+                    vid_aug = np.asarray(vid_aug)
+                batch = cs760.resize_batch(vid_aug, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
+                            inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
+                            simplenormalize=False,
+                            imagenetmeansubtract=False)
+                temp_outfile = outfile_top[:-4] + C["augmentation_type"][n - 1] + ".pkl"
                 features = extract(C, model, batch)
-                cs760.saveas_pickle(features, os.path.join(feature_directory, outfile))
-            else:
-                video_aug = sequential_list[n - 1](batch) # augments frames
-                new_batch = np.array(video_aug) # Converts the augmented video into supported batch format
-                temp_outfile = outfile[:-4] + C["augmentation_type"][n - 1] + ".pkl"
-                features = extract(C, model, new_batch)
                 cs760.saveas_pickle(features, os.path.join(feature_directory, temp_outfile))
+            else:
+                batch = cs760.resize_batch(vid_np_top, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
+                                inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
+                                simplenormalize=False,
+                                imagenetmeansubtract=False)
+                features = extract(C, model, batch)
+                cs760.saveas_pickle(features, os.path.join(feature_directory, outfile_top))
+        
+        batch = cs760.resize_batch(vid_np_bot, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
+                    inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
+                    simplenormalize=False,
+                    imagenetmeansubtract=False)
+        features = extract(C, model, batch)
+        cs760.saveas_pickle(features, os.path.join(feature_directory, outfile_bot))
 
     print('Finished outputting features!!')
 
 main()
-
-
-
-
-
-
