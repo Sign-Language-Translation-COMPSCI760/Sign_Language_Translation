@@ -53,18 +53,45 @@ Before doing anything, I suggest looking at the stage2model.py code in conjuncti
 
 To actually run training/eval:
 
-1. Run from models subdirectory. 
-
-2. First take a copy of config_dirs.json as eg configdirs_yourname.json.
+1. First take a copy of config_dirs.json as eg configdirs_yourname.json.
    Edit configdirs_yourname.json to set directories appropriately. 
-   Particularly, set the "outdir" key to the root directory that train_val_test_split.py created /train /val and /test from. 
-    
-3. To run transformer classifier with a reasonable set of parameters:
+   Particularly, set the "dict_pkls" key to the root directory of your dataset (the directory that has subdirectories /val /test and /train). 
+   
+2. Similarly, take a copy of the config760.json file as eg config760_yourname.json and edit the parameters starting with "s2" - more on this below*
+
+3. Run from models subdirectory. 
+4. To run  classifier with a reasonable set of parameters:
         
     python stage2model.py config_dirs_yourname.json config760.json
 
-4. To run fully connected NN classifier with a reasonable set of parameters:
-        
-    python stage2model.py config_dirs_yourname.json config760_fc1.json
+*config760.json parameters:
+
+	"augmentation_type": ["__HFLIP", "__ROTAT", "__CROP", "__BRIGHT", "__HUE", "__SATUR", "__CONTOUR", "__NOISE", "__INVERT"],
+	"s2_traintypes": ["__TOP", "__BOT", "__HFLIP"],   # Add remove augmentation types (see above list) that will be trained on
+	"s2_valtypes": ["__TOP"],                         # aug types to validate on - generally keep to __TOP
+	"s2_testtypes": ["__TOP"],                        # aug   "    "  test    "      "        "    "  "
+	"s2_model_type" : "fc1",                          # "fc1" for fully connected model or "tc1" for transformer model
+	"s2_batch_size_train": 10,                        # training batch size
+	"s2_batch_size_val": 10,                          # val bs
+	"s2_batch_size_test": 10,                         # test bs
+	"s2_max_seq_len" : 32,                            # the max number of featurised video frames to take from the input .pkl file sample
+	"s2_take_frame" : -1,           # if -1, will calculate how many frames to skip over in each input sample to cover the whole vid but with s2_max_seq_len frames.
+                                  # if > 1 the fixed number of frames to skip over
+	"s2_dropout" : 0.1,             # dropout percentage
+	"s2_min_lr" : 0.000001,         # min learning rate - stops when hits this
+	"s2_patience" : 6,              # the number of epochs to run without improvement before reducing the learning rate
+	"s2_factor" : 0.5,              # the factor to reduce the lr by after s2_patience is exhausted
+	"s2_monitor" : "val_accuracy",  # the metric to monitor for lr decay
+	"s2_mindelta" : 0.0001,         # the minimum diff in lr before it's counted as an improvement
+	"s2_stop_patience" : 13,        # the number of epochs to run without improvement before stopping
+	"s2_lr" : 0.0005,               # initial learning rate
+	"s2_max_epochs" : 500,          # max epochs to train before stopping if early stopping doesn't kick in earlier (it always does)
+	"s2_random_seed" : 42,          # Running with this random seed (and same other parameters) should produce identical results. Only use 42 and 101
+	"s2_add_pos_enc" : true,        # Transformer model only - add positional encoding (got much worse results with this off)
+	"s2_encoder_count" : 2,         # Transformer only - number of Encoder layers
+
+
+
+
 
 
