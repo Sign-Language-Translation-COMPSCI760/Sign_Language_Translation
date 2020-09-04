@@ -29,17 +29,85 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import cs760    #opencv based utils for vid / image manipulation plus other utilities
 
+def check_vid_sizes(C):
+    """ check video dimensions and number of frames
+    """
+    crops_for_resolutions = {}
+    example_vids = {}
+    for subdir in ['NZ', 'US']:
+        video_directory = "/home/tim/OneDrive/Documents/uni/760 Data Mining and Machine Learning/GroupProj/all signs/" + subdir  #C['dirs']['indir']
+        vids = cs760.list_files_pattern(video_directory, C["vid_type"])
+        frames_max = 0
+        frames_min = 99999999
+        frames_mean = 0
+        vids_count = 0
+        
+        for i, vid in enumerate(vids):
+            vid_np = cs760.get_vid_frames(vid, 
+                            video_directory, 
+                            writejpgs=False,
+                            writenpy=False,
+                            returnnp=True)
+            (framecount, frameheight, framewidth, channels) = vid_np.shape    
+            vids_count += 1
+            if framecount > frames_max:
+                frames_max = framecount
+            if framecount < frames_min:
+                frames_min = framecount
+            frames_mean += framecount    
+            if crops_for_resolutions.get( str(frameheight) + "-" + str(framewidth) ) is None:
+                crops_for_resolutions[str(frameheight) + "-" + str(framewidth)] = [0,0,0,0]
+                #print("NEW RESOLUTION:", str(frameheight) + "-" + str(framewidth))
+                example_vids[str(frameheight) + "-" + str(framewidth)] = vid_np[4]#os.path.join(video_directory, vid)
+                #plt.imshow(vid_np[4])
+                #inp = input("Hit any key to continue..")
+        frames_mean /= vids_count
+        print('Stats for Video directory: ', video_directory)
+        print(f"Vid Count:{vids_count}  Frames Max:{frames_max}  Min:{frames_min}  Mean:{frames_mean}")
+        print("Resolutions found:", crops_for_resolutions)
+
+        plt.imshow(example_vids['368-480'])  
+        tst = cs760.crop_image(example_vids['368-480'], [60, 5, 420, 365])
+        plt.imshow(tst)
+        tst = cs760.image_resize(tst, height=600, width=600)
+        plt.imshow(tst[0])
+
+        plt.imshow(example_vids['360-640'])
+        tst = cs760.crop_image(example_vids['360-640'], [145, 10, 495, 360])
+        plt.imshow(tst)
+        tst = cs760.image_resize(tst, height=600, width=600)
+        plt.imshow(tst[0])
+
+        plt.imshow(example_vids['240-320'])  
+        tst = cs760.crop_image(example_vids['240-320'], [0, 0, 320, 240])
+        plt.imshow(tst)
+        tst = cs760.image_resize(tst, height=600, width=600)
+        plt.imshow(tst[0])
+
+        plt.imshow(example_vids['480-640'])  
+        tst = cs760.crop_image(example_vids['480-640'], [0, 0, 640, 480])
+        plt.imshow(tst)
+        tst = cs760.image_resize(tst, height=600, width=600)
+        plt.imshow(tst[0])
+        return
+    
+
+
 def extract(C, model, batch):
     """ Extract features for one vid
     batch = vid encoded and resized as np array
     """
     fullfeatures_tf = tf.zeros((0, C["cnn_feat_dim"]), dtype=tf.float32)
+    frame_count_lessthan_batchsize = True
     for i in range(C["cnn_batch_size"], batch.shape[0], C["cnn_batch_size"]):
+        frame_count_lessthan_batchsize = False
         #print(i-C["cnn_batch_size"], i)
         batch_tf = tf.constant(batch[i-C["cnn_batch_size"]:i], dtype=tf.float32)  # convert to tf
         features = model(batch_tf)
         #print(features[0], features[-1])
         fullfeatures_tf = tf.concat([fullfeatures_tf, features], axis=0)
+    if frame_count_lessthan_batchsize:
+        i = 0
     if batch.shape[0] - i > 0:
         #print(i, i + (batch.shape[0] - i))
         batch_tf = tf.constant(batch[i:i+(batch.shape[0]-i)], dtype=tf.float32)  # convert to tf
@@ -47,17 +115,8 @@ def extract(C, model, batch):
         fullfeatures_tf = tf.concat([fullfeatures_tf, features], axis=0)
     return fullfeatures_tf.numpy()
 
-def main():
 
-#    try:
-#        video_directory = sys.argv[1] # intput video files
-#        feature_directory = sys.argv[2] # output feature files
-#    except:
-#        print("Video and feature directories not specified, setting them to default locations")
-#        print("Video locations: ../dataset/videos")
-#        print("Feature locations: ../features")
-#        video_directory = "../dataset/videos"
-#        feature_directory = "../features"
+def main():
 
     try:
         config_dirs_file = sys.argv[1] # directories file
@@ -103,7 +162,7 @@ def main():
     model = hub.KerasLayer(C["module_url"])  # can be used like any other kera layer including in other layers...
     print("Pretrained CNN Loaded OK")
 
-    vids = cs760.list_files_pattern(video_directory, '*.mov')
+    vids = cs760.list_files_pattern(video_directory, C["vid_type"])
     print(f'Processing {len(vids)} videos...')
 
     for i, vid in enumerate(vids):
@@ -113,14 +172,21 @@ def main():
                         writejpgs=False,
                         writenpy=False,
                         returnnp=True)
-
+        (framecount, frameheight, framewidth, channels) = vid_np.shape
+        res_key = str(frameheight) + "-" + str(framewidth)
         #print(vid, vid_np.shape)
         outfile = os.path.splitext(vid)[0]
+        
+        print(f"Vid frames, h, w, c = {(framecount, frameheight, framewidth, channels)}")
+        
+        if C["crop_by_res"].get(res_key) is not None:
+            vid_np_top = cs760.crop_image(vid_np, C["crop_by_res"][res_key])
+            print(f"Cropped by resolution to {C['crop_by_res'][res_key]}")
+        else:    
+            vid_np_top = cs760.crop_image(vid_np, C["crop_top"])
+            print(f"Cropped by default to {C['crop_top']}")
 
-        vid_np_top = cs760.crop_image(vid_np, C["crop_top"])
         outfile_top = outfile + "__TOP.pkl"
-        vid_np_bot = cs760.crop_image(vid_np, C["crop_bottom"])
-        outfile_bot = outfile + "__BOT.pkl"  
 
         for n in range((len(sequential_list) + 1)):
             if n != 0:
@@ -141,13 +207,17 @@ def main():
                                 imagenetmeansubtract=False)
                 features = extract(C, model, batch)
                 cs760.saveas_pickle(features, os.path.join(feature_directory, outfile_top))
-        
-        batch = cs760.resize_batch(vid_np_bot, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
-                    inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
-                    simplenormalize=False,
-                    imagenetmeansubtract=False)
-        features = extract(C, model, batch)
-        cs760.saveas_pickle(features, os.path.join(feature_directory, outfile_bot))
+                print(f'Features output shape: {features.shape}')
+                
+        if C["crop_type"] == 'B':  # only for boston vids
+            vid_np_bot = cs760.crop_image(vid_np, C["crop_bottom"])
+            outfile_bot = outfile + "__BOT.pkl"  
+            batch = cs760.resize_batch(vid_np_bot, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
+                        inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
+                        simplenormalize=False,
+                        imagenetmeansubtract=False)
+            features = extract(C, model, batch)
+            cs760.saveas_pickle(features, os.path.join(feature_directory, outfile_bot))
 
     print('Finished outputting features!!')
 
