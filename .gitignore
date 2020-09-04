@@ -8,6 +8,7 @@ config_dirs_tim.json
 extract_features_timbackup.py
 train_val_test_split_timbackup.py
 create_final_dataset_val_test_backup.py
+stage2model_initial.py
 
 # Ignore directories
 features/

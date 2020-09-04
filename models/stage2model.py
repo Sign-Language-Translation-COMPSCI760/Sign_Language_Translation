@@ -43,6 +43,15 @@ def rand_seed_all(seed=42):
     tf.random.set_seed(seed)
     return
 
+def calc_frames(seqlen = [32, 50]):
+    for seq in seqlen:
+        print("For Max Seq Len:", seq)
+        for num_frames in [13, 25, 32, 57, 69, 120, 136, 150, 180, 193]:
+            #print(f"{num_frames}: max(num_frames//seq,1): {max(num_frames//seq, 1)} ({num_frames/max(num_frames//seq, 1)})")
+            #print(f"{num_frames}: max(num_frames//seq+1,1): {max(num_frames//seq + 1, 1)} ({num_frames/(max(num_frames//seq, 1)+1)})")
+            print(f"{num_frames}: max(round(num_frames/seq),1): {max(round(num_frames/seq), 1)} ({num_frames/(max(round(num_frames/seq), 1))})")
+    
+
 class Features_in(tf.keras.utils.Sequence):
     """ Return a batch of samples for model input. Called from .fit(...).
         There will be one instance of this class for each of train, val and test
@@ -51,7 +60,7 @@ class Features_in(tf.keras.utils.Sequence):
     """
     def __init__(self, C, subdir = "train", shuffle = False):
         self.C = copy.deepcopy(C)
-        self.input_dir = os.path.join(C["dirs"]["outdir"], subdir)
+        self.input_dir = os.path.join(C["dirs"]["dict_pkls"], subdir)
         
         if subdir == "train":
             filepattern = C["s2_traintypes"]
@@ -67,6 +76,7 @@ class Features_in(tf.keras.utils.Sequence):
             
         patterns = ['*' + pattern + '.pkl' for pattern in filepattern]    
         self.filenames = cs760.list_files_multipatterns(self.input_dir, patterns)
+        
         if shuffle:
             rand_seed_all(C["s2_random_seed"])  #should now get same results when run with same random seed.
             random.shuffle(self.filenames)
@@ -89,6 +99,7 @@ class Features_in(tf.keras.utils.Sequence):
 
         self.maxseqlen = C["s2_max_seq_len"]   # pad or truncate to this seq len
         self.num_classes = C["num_classes"]
+        self.take_frame = C["s2_take_frame"]   # -1 for calculate dynamically based on number of frames
         return
     
 
@@ -101,11 +112,15 @@ class Features_in(tf.keras.utils.Sequence):
         batch_list = []        
         for file in batch_x:
             sample = cs760.loadas_pickle(os.path.join(self.input_dir, file))
-            sample = sample[0::C["s2_take_frame"]]        # only take every nth frame
+            if self.take_frame == -1:
+                take_frame = max(round(sample.shape[0] / self.maxseqlen), 1)
+            else:
+                take_frame = self.take_frame
+            sample = sample[0::take_frame]        # only take every nth frame
             if sample.shape[0] > self.maxseqlen:          # truncate features to maxseqlen
                 sample = sample[0:self.maxseqlen]
             elif sample.shape[0] < self.maxseqlen:        # pad features to maxseqlen
-                sample_padded = np.zeros((self.maxseqlen, 2560), dtype=np.float32)
+                sample_padded = np.zeros((self.maxseqlen, self.C["cnn_feat_dim"]), dtype=np.float32)
                 sample_padded[0:sample.shape[0]] = sample
                 sample = sample_padded
             batch_list.append(sample)
@@ -146,15 +161,15 @@ def get_fc_model(C):
     """ Simple fully connected model
     """    
     m = tf.keras.Sequential([
-            tf.keras.layers.Input(shape=(C["s2_max_seq_len"], 2560)) ,
+            tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])) ,
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(2560*C["s2_max_seq_len"] // 16, activation='relu'),
+            tf.keras.layers.Dense(C["cnn_feat_dim"]*C["s2_max_seq_len"] // 16, activation='relu'),
             tf.keras.layers.Dropout(C["s2_dropout"]),
             tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dense((2560*C["s2_max_seq_len"]) //16, activation='relu'),
+            tf.keras.layers.Dense((C["cnn_feat_dim"]*C["s2_max_seq_len"]) //16, activation='relu'),
             tf.keras.layers.Dropout(C["s2_dropout"]),
             tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dense((2560*C["s2_max_seq_len"]) // 16, activation='relu'),
+            tf.keras.layers.Dense((C["cnn_feat_dim"]*C["s2_max_seq_len"]) // 16, activation='relu'),
             tf.keras.layers.Dense(C["num_classes"], activation='softmax')     
     ])  
     
@@ -171,10 +186,10 @@ def get_transclassifier_model(C):
     """ Classifying Transformer model
     """    
     m = tf.keras.Sequential([
-            tf.keras.layers.Input(shape=(C["s2_max_seq_len"], 2560)),
+            tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])),
             model_transformer.TransformerEncoder(encoder_count=C["s2_encoder_count"],
                                                  attention_head_count=8, 
-                                                 d_model=2560, 
+                                                 d_model=C["cnn_feat_dim"], 
                                                  dropout_prob=C["s2_dropout"], 
                                                  add_pos_enc=C["s2_add_pos_enc"]),
             tf.keras.layers.Flatten(),
