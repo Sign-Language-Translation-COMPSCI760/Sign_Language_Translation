@@ -28,9 +28,7 @@ Required packages (use pip install):
 - scikit-image
 - imgaug
 
-NOTE downloding data from videos:
-
-You must create a directory called "features" and "videos" in the dataset directory if you want to use the default locations. (Will be fixed with final setup)
+NOTE To train models you just need to follow the instructions below to download the final dataset and run/view stage 2 model.
 
 # To run CNN feature extractor:
 
@@ -40,11 +38,21 @@ You must create a directory called "features" and "videos" in the dataset direct
 5. Ignore the various tensorflow messages, eventually the program will start processing videos. Each vid takes around 10 secs to process on my machine.
 
 
-# To create train/val/test split:
+# To create train/val/test split  (initial dataset only):
 1. cd to your models subdirectory
 3. python train_val_test_split.py video_directory feature_directory, the video and feature arguments are the location of the video and feature files. If one is missing or both are missing then the arguments will default to the self contained directories "../dataset/videos", "../features".
 4. The program will create subdirectories /train, /val, and /test under feature_directory and copy (not move) the feature files into the respective subdirectories.
 5. You should end up with 56 files in test, 1570 files in train and 84 files in val assuming you have run the CNN Feature extractor with crop_type "B" as well as crop_type "T".
+
+
+# To download/set up the final dataset on your machine:
+I've created a subfolder on the shared drive called "datasets". Inside that are val.tar.gz, test.tar.gz and train.tar.gz. You need to download them and extract them into into a folder structure as follows:
+c:\.....\your_dataset_subdir\val
+c:\.....\your_dataset_subdir\test
+c:\.....\your_dataset_subdir\train
+
+Then take a copy of and edit the /models/config_dirs.json file and set the "dict_pkls" key to the root directory of your dataset (the directory that has subdirectories /val /test and /train)
+
 
 
 # To run/view stage 2 model (takes under 10 minutes to fully train and run evaluation):
