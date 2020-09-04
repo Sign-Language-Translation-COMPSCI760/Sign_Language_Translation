@@ -1,9 +1,9 @@
 {
-	"indir": "/media/tim/dl3storage/Datasets/asllrp",
-	"outdir": "/media/tim/dl3storage/Datasets/asllrp_features_aug",
+	"indir": "/home/tim/OneDrive/Documents/uni/760 Data Mining and Machine Learning/GroupProj/all signs/US",
+	"outdir": "/media/tim/dl3storage/Datasets/asllrp_features_aug/us_dict_vids",
 	"ckpts" : "/media/tim/dl3storage/tmp",
 	"tensorboard" : "/media/tim/dl3storage/tmp",
-	"dict_pkls" : "/OneDrive/Documents/uni/760 Data Mining and Machine Learning/GroupProj/Sign features",
-	"test_set_dirs" : ["NZSL_360x360_25fps_original"],
-	"val_set_dirs" : ["SigningSavy_350x350_15fps_split", "Handspeak_480x480_15fps_split", "Handspeak_360x360_15fps_split", "Handspeak_240x240_15fps_split"]
+	"dict_pkls" : "/media/tim/dl3storage/Datasets/asllrp_features_aug",
+	"test_set_dirs" : ["nz_vids"],
+	"val_set_dirs" : ["us_dict_vids"]
 }

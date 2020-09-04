@@ -7,6 +7,7 @@ config760_timbackup.json
 config_dirs_tim.json
 extract_features_timbackup.py
 train_val_test_split_timbackup.py
+create_final_dataset_val_test_backup.py
 
 # Ignore directories
 features/
