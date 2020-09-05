@@ -195,7 +195,7 @@ def main():
                     vid_aug = np.asarray(vid_aug)
                 batch = cs760.resize_batch(vid_aug, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
                             inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
-                            simplenormalize=False,
+                            simplenormalize=True,
                             imagenetmeansubtract=False)
                 temp_outfile = outfile_top[:-4] + C["augmentation_type"][n - 1] + ".pkl"
                 features = extract(C, model, batch)
@@ -203,7 +203,7 @@ def main():
             else:
                 batch = cs760.resize_batch(vid_np_top, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
                                 inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
-                                simplenormalize=False,
+                                simplenormalize=True,
                                 imagenetmeansubtract=False)
                 features = extract(C, model, batch)
                 cs760.saveas_pickle(features, os.path.join(feature_directory, outfile_top))
@@ -214,7 +214,7 @@ def main():
             outfile_bot = outfile + "__BOT.pkl"  
             batch = cs760.resize_batch(vid_np_bot, width=C["expect_img_size"], height=C["expect_img_size"], pad_type='L',
                         inter=cv2.INTER_CUBIC, BGRtoRGB=False, 
-                        simplenormalize=False,
+                        simplenormalize=True,
                         imagenetmeansubtract=False)
             features = extract(C, model, batch)
             cs760.saveas_pickle(features, os.path.join(feature_directory, outfile_bot))

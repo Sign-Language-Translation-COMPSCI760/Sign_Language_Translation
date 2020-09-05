@@ -18,7 +18,7 @@
 	"s2_batch_size_val": 10,
 	"s2_batch_size_test": 10,
 	"s2_max_seq_len" : 32,
-	"s2_take_frame" : -1,
+	"s2_take_frame" : 4,
 	"s2_dropout" : 0.1,
 	"s2_min_lr" : 0.000001,
 	"s2_patience" : 6,
