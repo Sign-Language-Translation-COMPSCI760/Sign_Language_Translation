@@ -60,28 +60,49 @@ class Features_in(tf.keras.utils.Sequence):
     """
     def __init__(self, C, subdir = "train", shuffle = False):
         self.C = copy.deepcopy(C)
+        if C["s2_classifier_type"] == 'softmax':
+            self.classifier_type = 'softmax'
+            self.curr_sign = ""
+        else:
+            self.classifier_type = 'sigmoid'
+            self.curr_sign = C["curr_sign"]
+
         self.input_dir = os.path.join(C["dirs"]["dict_pkls"], subdir)
+        self.subdir = subdir
         
         if subdir == "train":
             filepattern = C["s2_traintypes"]
             self.batch_size = C["s2_batch_size_train"]
+            self.take_frame = C["s2_train_take_frame"]   # -1 for calculate dynamically based on number of frames
+            self.restrictto = C["s2_train_restrictto"]
         elif subdir == "val":
             filepattern = C["s2_valtypes"]
             self.batch_size = 99999999  #C["s2_batch_size_val"]  Weirdly .fit() doesnt allow a generator for validation so read entire val set back into np arrays
+            self.take_frame = C["s2_val_take_frame"]   # -1 for calculate dynamically based on number of frames
+            self.restrictto = C["s2_val_restrictto"]
         elif subdir == "test":
             filepattern = C["s2_testtypes"]
             self.batch_size = C["s2_batch_size_test"]
+            self.take_frame = C["s2_test_take_frame"]   # -1 for calculate dynamically based on number of frames
+            self.restrictto = C["s2_test_restrictto"]
         else:
             assert True == False, f"FeaturesIn ERROR: Unknown subdir name {subdir}! Unable to proceed"
             
         patterns = ['*' + pattern + '.pkl' for pattern in filepattern]    
         self.filenames = cs760.list_files_multipatterns(self.input_dir, patterns)
         
+        if C["s2_restrictto_ornot"]:
+            if self.restrictto != "":  # eliminate filenames not matching restrictto eg "__US" 
+                self.filenames = [f for f in self.filenames if f.upper().find(self.restrictto) != -1]
+        else:        
+            if self.restrictto != "":  # eliminate filenames matching restrictto eg "__US" 
+                self.filenames = [f for f in self.filenames if f.upper().find(self.restrictto) == -1]
+        
         if shuffle:
             rand_seed_all(C["s2_random_seed"])  #should now get same results when run with same random seed.
             random.shuffle(self.filenames)
             
-        labels = []            
+        labels = []
         for i, filename in enumerate(self.filenames):
             try:
                 labels.append( filename[:filename.index('__')] )
@@ -93,13 +114,37 @@ class Features_in(tf.keras.utils.Sequence):
         for l in labels:
             if l not in C["sign_classes"]:
                 assert True==False, f"FeaturesIn ERROR: Label {l} is not in C['sign_classes']. Either fix the file name or update C['sign_classes']. Aborting."
-            self.labels.append(C["sign_indices"][l])    #append indix for label, not the label itself
-                
+            if self.classifier_type == 'softmax':
+                self.labels.append(C["sign_indices"][l])    #append indix for label, not the label itself
+            else:                                           # binary classifier: append 1 for the target sign, 0 for all others
+                if l == self.curr_sign:
+                    self.labels.append(1)
+                else:
+                    self.labels.append(0)
         assert len(self.labels) == len(self.filenames), "FeaturesIn ERROR: number of labels must equal number of input files. Unable to proceed."
+        
+        if self.classifier_type != 'softmax' and self.subdir == 'train':       #build list of positive and negative samples for balanced sampling
+            self.filenames_positive = []
+            self.filenames_negative = []
+            self.labels_positive = []
+            self.labels_negative = []            
+            for i in range(len(self.labels)):
+                if self.labels[i] == 0:
+                    self.filenames_negative.append(self.filenames[i])
+                    self.labels_negative.append(self.labels[i])
+                else:
+                    self.filenames_positive.append(self.filenames[i])
+                    self.labels_positive.append(self.labels[i])
+            self.takepositives = int(np.floor(self.batch_size * C["s2_positives_ratio"]))        
+            self.takenegatives = int(np.ceil(self.batch_size * (1-C["s2_positives_ratio"])))        
+            assert self.takepositives + self.takenegatives == self.batch_size, f"ERROR: invalid s2_positives_ratio {C['s2_positives_ratio']} relative to batch size {self.batch_size}"        
 
         self.maxseqlen = C["s2_max_seq_len"]   # pad or truncate to this seq len
-        self.num_classes = C["num_classes"]
-        self.take_frame = C["s2_take_frame"]   # -1 for calculate dynamically based on number of frames
+
+        if self.classifier_type == 'softmax':
+            self.num_classes = C["num_classes"]
+        else:
+            self.num_classes = 1
         return
     
 
@@ -107,7 +152,23 @@ class Features_in(tf.keras.utils.Sequence):
         return int(np.ceil(len(self.filenames) / float(self.batch_size)))
 
     def __getitem__(self, idx):
-        batch_x = self.filenames[idx * self.batch_size:(idx + 1) * self.batch_size]
+        if self.classifier_type != 'softmax' and self.subdir == 'train':
+            batch_x = []
+            batch_y = []
+            num_positives = len(self.labels_positive)-1
+            num_negatives = len(self.labels_negative) - 1
+            for i in range(self.takepositives):
+                j = random.randint(0, num_positives)
+                batch_x.append(self.filenames_positive[j])
+                batch_y.append(self.labels_positive[j])
+            for i in range(self.takenegatives):
+                j = random.randint(0, num_negatives)
+                batch_x.append(self.filenames_negative[j])
+                batch_y.append(self.labels_negative[j])
+            batch_y = np.array(batch_y, dtype=np.float32)
+        else:
+            batch_x = self.filenames[idx * self.batch_size:(idx + 1) * self.batch_size]
+            batch_y = np.array(self.labels[idx * self.batch_size:(idx + 1) * self.batch_size], dtype=np.float32)
 
         batch_list = []        
         for file in batch_x:
@@ -116,7 +177,7 @@ class Features_in(tf.keras.utils.Sequence):
                 take_frame = max(round(sample.shape[0] / self.maxseqlen), 1)
             else:
                 take_frame = self.take_frame
-            sample = sample[0::take_frame]        # only take every nth frame
+            sample = sample[0::take_frame]                # only take every nth frame
             if sample.shape[0] > self.maxseqlen:          # truncate features to maxseqlen
                 sample = sample[0:self.maxseqlen]
             elif sample.shape[0] < self.maxseqlen:        # pad features to maxseqlen
@@ -125,9 +186,93 @@ class Features_in(tf.keras.utils.Sequence):
                 sample = sample_padded
             batch_list.append(sample)
         batch_np = np.array(batch_list, dtype = np.float32)                        
-        batch_y = np.array(self.labels[idx * self.batch_size:(idx + 1) * self.batch_size], dtype=np.float32)
-        batch_y = tf.keras.utils.to_categorical(batch_y, self.num_classes)
+        if self.classifier_type == 'softmax':
+            batch_y = tf.keras.utils.to_categorical(batch_y, self.num_classes)
         return batch_np, batch_y
+    
+
+def output_perclass(C, m, gen, verbose=0):
+    """ Output predictions per class for 70 class classifier
+    """
+    preds = m.predict(  x = gen,
+                        verbose = 1,
+                        max_queue_size = 10,
+                        workers = 1,
+                        use_multiprocessing = False)
+
+    preds = preds.argmax(axis = 1)  # index of max value in each row is the predicted class
+    gt = gen.labels
+    correct_per_class = np.zeros((len(C["sign_classes"])), dtype = np.int32)
+    incorrect_per_class = np.zeros((len(C["sign_classes"])), dtype = np.int32)
+    for i in range(len(gt)):
+        if gt[i] == preds[i]:
+            correct_per_class[gt[i]] += 1
+        else:    
+            incorrect_per_class[gt[i]] += 1
+
+    print("Per-Class Predictions:")     
+    if verbose > 1:
+        for i in range(len(correct_per_class)):
+            if correct_per_class[i] + incorrect_per_class[i] > 0:   # exclude outputs for classes that don't exist in this dataset
+                print(f'{i} {C["sign_classes"][i]}   Correct: {correct_per_class[i]}   Incorrect: {incorrect_per_class[i]}   % Correct: {(correct_per_class[i] / (correct_per_class[i] + incorrect_per_class[i]))*100}')
+
+    correct_list = []        
+    incorrect_list = []    
+    for i in range(len(correct_per_class)):
+        if correct_per_class[i] + incorrect_per_class[i] > 0:   # exclude outputs for classes that don't exist in this dataset
+            if correct_per_class[i] >= 1:
+                correct_list.append(C["sign_classes"][i])
+            if incorrect_per_class[i] >= 1:
+                incorrect_list.append(C["sign_classes"][i])
+    print("#############################################################")
+    print(f"Classes with at least one INCORRECT: {incorrect_list}")
+    print("#############################################################")
+    print(f"Classes with at least one CORRECT: {correct_list}")
+    print("#############################################################")
+
+    return preds
+
+
+def output_perclass_binary(C, m, gen, verbose=0):
+    """ Output predictions per class for binary classifier
+    """
+    sign = C["curr_sign"]
+    preds = m.predict(  x = gen,
+                        verbose = 1,
+                        max_queue_size = 10,
+                        workers = 1,
+                        use_multiprocessing = False)
+    pred_scores = np.where(preds < C["s2_classifier_thresh"], 0, 1)
+    preds = pred_scores.squeeze()
+    gt = gen.labels
+    correct_per_class = 0
+    incorrect_per_class = 0
+    TP = 0
+    TN = 0
+    FP = 0
+    FN = 0
+    for i in range(len(gt)):
+        if gt[i] == preds[i]:
+            correct_per_class += 1
+            if gt[i] == 1:
+                TP += 1
+            else:
+                TN += 1
+        else:    
+            incorrect_per_class += 1
+            if gt[i] == 1:
+                FN += 1
+            else:
+                FP += 1
+
+    print(f"{sign} Predictions:")
+    print("#############################################################")
+    print(f"{sign} TP:{TP}  TN:{TN}  FP:{FP}  FN:{FN}")
+    print(f"{sign} Predictions CORRECT: {TP}")
+    print("#############################################################")
+
+    return preds, (TP, TN, FP, FN)
+
 
 
 def plots(model):
@@ -160,24 +305,41 @@ def plots(model):
 def get_fc_model(C):
     """ Simple fully connected model
     """    
+    
+    if C["s2_classifier_type"] == 'softmax':
+        num_classes = C["num_classes"]
+    else:
+        num_classes = 1
+        
+    if C["s2_regularizer"] > 0.0:
+        regul = tf.keras.regularizers.L2(l2=C["s2_regularizer"])
+    else:
+        regul = None
+        
     m = tf.keras.Sequential([
             tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])) ,
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(C["cnn_feat_dim"]*C["s2_max_seq_len"] // 16, activation='relu'),
+            tf.keras.layers.Dense(C["cnn_feat_dim"]*C["s2_max_seq_len"] // 16, activation='relu', kernel_regularizer=regul),
             tf.keras.layers.Dropout(C["s2_dropout"]),
             tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dense((C["cnn_feat_dim"]*C["s2_max_seq_len"]) //16, activation='relu'),
+            tf.keras.layers.Dense((C["cnn_feat_dim"]*C["s2_max_seq_len"]) // 16, activation='relu', kernel_regularizer=regul),
             tf.keras.layers.Dropout(C["s2_dropout"]),
             tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dense((C["cnn_feat_dim"]*C["s2_max_seq_len"]) // 16, activation='relu'),
-            tf.keras.layers.Dense(C["num_classes"], activation='softmax')     
+            tf.keras.layers.Dense((C["cnn_feat_dim"]*C["s2_max_seq_len"]) // 16, activation='relu', kernel_regularizer=regul),
+            tf.keras.layers.Dense(num_classes, activation=C["s2_classifier_type"])     
     ])  
     
     opt = tf.keras.optimizers.Adam(learning_rate=C["s2_lr"])  # adam default = 0.001
     
-    m.compile(  loss="categorical_crossentropy",
-                optimizer=opt,
-                metrics=['accuracy'])
+    if C["s2_classifier_type"] == 'softmax':
+        m.compile(  loss="categorical_crossentropy",
+                    optimizer=opt,
+                    metrics=['accuracy'])
+    else:
+        m.compile(  loss="binary_crossentropy",
+                    optimizer=opt,
+                    metrics=['accuracy'])
+        
     print(m.summary())
     return m
 
@@ -185,6 +347,16 @@ def get_fc_model(C):
 def get_transclassifier_model(C):
     """ Classifying Transformer model
     """    
+    if C["s2_classifier_type"] == 'softmax':
+        num_classes = C["num_classes"]
+    else:
+        num_classes = 1
+
+    if C["s2_regularizer"] > 0.0:
+        regul = tf.keras.regularizers.L2(l2=C["s2_regularizer"])
+    else:
+        regul = None
+        
     m = tf.keras.Sequential([
             tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])),
             model_transformer.TransformerEncoder(encoder_count=C["s2_encoder_count"],
@@ -196,47 +368,138 @@ def get_transclassifier_model(C):
 #            tf.keras.layers.Dropout(C["s2_dropout"]),
             tf.keras.layers.BatchNormalization(),   #less variation when this line is here but don't get the really good accuracies (0.5)
 #            tf.keras.layers.Dense((2560*C["s2_max_seq_len"]) // 16, activation='relu'),
-            tf.keras.layers.Dense(C["num_classes"], activation='softmax')     
+            tf.keras.layers.Dense(num_classes, activation=C["s2_classifier_type"])     
     ])  
     
     opt = tf.keras.optimizers.Adam(learning_rate=C["s2_lr"])  # adam default = 0.001
     
-    m.compile(  loss="categorical_crossentropy",
-                optimizer=opt,
-                metrics=['accuracy'])
+    if C["s2_classifier_type"] == 'softmax':
+        m.compile(  loss="categorical_crossentropy",
+                    optimizer=opt,
+                    metrics=['accuracy'])
+    else:
+        m.compile(  loss="binary_crossentropy",
+                    optimizer=opt,
+                    metrics=['accuracy'])
     print(m.summary())
     return m
-    
 
 
-if __name__ == '__main__':
+def train_eval_one_sign_binary(C):
+    """ Train evaluate a single sign using a binary classifier
+        The sign to train for is specified in C["curr_sign"] before calling
+    """
+    sign = C["curr_sign"]
+    reduce_lr_on_plateau = tf.keras.callbacks.ReduceLROnPlateau(monitor=C["s2_monitor"], 
+                                                     factor = C["s2_factor"], 
+                                                     patience = C["s2_patience"], 
+                                                     min_lr = C["s2_min_lr"],
+                                                     verbose=1)
     
-    try:
-        config_dirs_file = sys.argv[1] # directories file
-        config_file = sys.argv[2]      # main params file
-    except:
-        print("Config file names not specified, setting them to default namess")
-        config_dirs_file = "config_dirs.json"
-        config_file = "config760.json"
-    print(f'USING CONFIG FILES: config dirs:{config_dirs_file}  main config:{config_file}')
+    early_stopping = tf.keras.callbacks.EarlyStopping(monitor=C["s2_monitor"],
+                                                      min_delta=C["s2_mindelta"], 
+                                                      patience=C["s2_stop_patience"],
+                                                      verbose=1,
+                                                      restore_best_weights=True)
     
-    C = cs760.loadas_json(config_file)
-    print("Running with parameters:", C)
+    traingen = Features_in(C, "train", shuffle=True)
     
-    Cdirs = cs760.loadas_json(config_dirs_file)
-    print("Directories:", Cdirs)
-    
-    C['dirs'] = Cdirs
-    
-    classes_dict = {}
-    for i, c in enumerate(C["sign_classes"]):
-        classes_dict[c] = i                    # index into final output vector for each class
-    print(f"Class Indices: {classes_dict}")
+    tstbatch = traingen.__getitem__(0)
+     # tuple
+    print(type(tstbatch), tstbatch[0].shape, tstbatch[0].dtype)
+    print(tstbatch[1].shape, tstbatch[1].dtype)
 
-    C['sign_indices'] = classes_dict   
-    C['num_classes'] = len(C["sign_classes"])
+    valgen = Features_in(C, "val", shuffle=False)
+    valdata = valgen.__getitem__(0)   
+    print("Val Input x", valdata[0].shape, valdata[0].dtype)
+    print("Val Labels y", valdata[1].shape, valdata[1].dtype)
+
+    testgen = Features_in(C, "test", shuffle=False)
+    testbatch = testgen.__getitem__(0)
+    print("Input x", testbatch[0].shape, testbatch[0].dtype)
+    print("Labels y", testbatch[1].shape, testbatch[1].dtype)
+
+    if C["s2_model_type"] == "fc1":
+        m = get_fc_model(C)
+    elif C["s2_model_type"] == "tc1":
+        m = get_transclassifier_model(C)
+    else:
+        assert True==False, f"ERROR: Unknown s2_model_type in config file: {C['s2_model_type']}. Must be one of fc1 or tc1"
+    
+    history = m.fit(x = traingen, 
+                    epochs = C["s2_max_epochs"],
+                    initial_epoch = 0,
+                    verbose = 1,
+                    callbacks = [reduce_lr_on_plateau, early_stopping],
+                    validation_data = valdata,
+                    validation_batch_size = C["s2_batch_size_val"],
+                    steps_per_epoch = traingen.__len__(),
+                    validation_freq = 1,
+                    max_queue_size = 10,
+                    workers = 1,
+                    use_multiprocessing = False)
+    plots(history)   
+    best_epoch = np.argmax(history.history['val_accuracy'])  # history is zero-based but keras screen output 1st epoch is epoch 1
+    print()
+    print("#######################################################")
+    print(f"{sign} Training Best Epoch: {best_epoch+1}  Train Acc: {history.history['accuracy'][best_epoch]} Val Acc:{history.history['val_accuracy'][best_epoch]}")
+    print(f"Best Epoch (1-based): {best_epoch+1}")   
+    print("#######################################################")
+    print()
+    
+    evaluation = m.evaluate(x = testgen,
+                            verbose = 1,
+                            max_queue_size = 10,
+                            workers = 1,
+                            use_multiprocessing = False,
+                            return_dict = True)
+    print()
+    print("#######################################################")
+    print(f"{sign} Evaluation: {evaluation}")
+    print("#######################################################")
+    print()
+    print("PREDICTIONS ON VAL:")
+    valpreds, valstats = output_perclass_binary(C, m, gen=valgen)
+    print("PREDICTIONS ON TEST (NZSL):")
+    testpreds, teststats = output_perclass_binary(C, m, gen=testgen)
+    del m
+    return testpreds, teststats, valpreds, valstats
+    
+
+def train_eval_binary(C):
+    """ Train one binary classifier per sign in test set
+    """
+    sign_dict_test = {}
+    sign_dict_val = {}
+    for sign in C["nzsl_signs"]:
+        print(f'Training Binary classifier for sign {sign}')
+        C["curr_sign"] = sign
+        testpreds, (TP,TN,FP,FN), valpreds, (TP_val,TN_val,FP_val,FN_val) = train_eval_one_sign_binary(C)
+        sign_dict_test[sign] = {'TP':TP, 'TN':TN, 'FP':FP, 'FN':FN}
+        sign_dict_val[sign] = {'TP':TP_val, 'TN':TN_val, 'FP':FP_val, 'FN':FN_val}
+
+    print(f"Sign Binary Classification on VAL (BOSTON) Summary: {sign_dict_val}")    
+    correct_signs = 0
+    for sign in sign_dict_val:
+        if sign_dict_val[sign]['TP'] >= 1:
+            correct_signs += 1
+    print(f"OVERALL ACCURACY ON VAL (BOSTON) USING BINARY CLASSIFICATION: {correct_signs/len(sign_dict_test)}  {correct_signs} of {len(sign_dict_test)} correctly predicted")
+
+        
+    print(f"Sign Binary Classification on TEST (NZSL) Summary: {sign_dict_test}")    
+    correct_signs = 0
+    for sign in sign_dict_test:
+        if sign_dict_test[sign]['TP'] >= 1:
+            correct_signs += 1
+    print(f"OVERALL ACCURACY ON TEST (NZSL) USING BINARY CLASSIFICATION: {correct_signs/len(sign_dict_test)}  {correct_signs} of {len(sign_dict_test)} correctly predicted")
+        
+    return
 
 
+def train_eval_softmax(C):
+    """ Train a 70 class softmax classifier
+    """
+    
     traingen = Features_in(C, "train", shuffle=True)
     
     tstbatch = traingen.__getitem__(0)
@@ -253,7 +516,7 @@ if __name__ == '__main__':
     #tstbatch = testgen.__getitem__(0)
     #print("Input x", tstbatch[0].shape, tstbatch[0].dtype)
     #print("Labels y", tstbatch[1].shape, tstbatch[1].dtype)
-    
+
     if C["s2_model_type"] == "fc1":
         m = get_fc_model(C)
     elif C["s2_model_type"] == "tc1":
@@ -326,26 +589,53 @@ if __name__ == '__main__':
     print(f"Evaluation: {evaluation}")
     print("#######################################################")
     print()
-    
-    testpreds = m.predict(x = testgen,
-                            verbose = 1,
-                            max_queue_size = 10,
-                            workers = 1,
-                            use_multiprocessing = False)
 
-    preds = testpreds.argmax(axis = 1)  # index of max value in each row is the predicted class
-    gt = testgen.labels
-    correct_per_class = np.zeros((len(C["sign_classes"])), dtype = np.int32)
-    incorrect_per_class = np.zeros((len(C["sign_classes"])), dtype = np.int32)
-    for i in range(len(gt)):
-        if gt[i] == preds[i]:
-            correct_per_class[gt[i]] += 1
-        else:    
-            incorrect_per_class[gt[i]] += 1
-    print("Per-Class Predictions on Test Set")     
-    for i in range(len(correct_per_class)):
-        if correct_per_class[i] + incorrect_per_class[i] > 0:
-            print(f'{i} {C["sign_classes"][i]}   Correct: {correct_per_class[i]}   Incorrect: {incorrect_per_class[i]}   % Correct: {(correct_per_class[i] / (correct_per_class[i] + incorrect_per_class[i]))*100}')
+
+    print("PER-CLASS PREDICTIONS ON TEST (NZSL):")
+    testpreds = output_perclass(C, m, gen=testgen, verbose=C["s2_verbose"])    
+    print()
+    print("#######################################################")    
+    print("PER-CLASS PREDICTIONS ON VAL (BOSTON):")
+    valpreds = output_perclass(C, m, gen=valgen, verbose=C["s2_verbose"])
+    return testpreds, valpreds    
+    
+
+
+if __name__ == '__main__':
+    
+    try:
+        config_dirs_file = sys.argv[1] # directories file
+        config_file = sys.argv[2]      # main params file
+    except:
+        print("Config file names not specified, setting them to default namess")
+        config_dirs_file = "config_dirs.json"
+        config_file = "config760.json"
+    print(f'USING CONFIG FILES: config dirs:{config_dirs_file}  main config:{config_file}')
+    
+    C = cs760.loadas_json(config_file)
+    print("Running with parameters:", C)
+    
+    Cdirs = cs760.loadas_json(config_dirs_file)
+    print("Directories:", Cdirs)
+    
+    C['dirs'] = Cdirs
+    
+    classes_dict = {}
+    for i, c in enumerate(C["sign_classes"]):
+        classes_dict[c] = i                    # index into final output vector for each class
+    print(f"Class Indices: {classes_dict}")
+
+    C['sign_indices'] = classes_dict   
+    C['num_classes'] = len(C["sign_classes"])
+
+
+    
+    if C["s2_classifier_type"] == 'softmax':
+        testpreds, valpreds = train_eval_softmax(C)
+    else:
+        testpreds, valpreds = train_eval_binary(C)
+
+    
 
 
 
