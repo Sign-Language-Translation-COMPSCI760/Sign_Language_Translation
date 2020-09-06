@@ -65,17 +65,26 @@ class Features_in(tf.keras.utils.Sequence):
         if subdir == "train":
             filepattern = C["s2_traintypes"]
             self.batch_size = C["s2_batch_size_train"]
+            self.take_frame = C["s2_train_take_frame"]   # -1 for calculate dynamically based on number of frames
+            self.restrictto = C["s2_train_restrictto"]
         elif subdir == "val":
             filepattern = C["s2_valtypes"]
             self.batch_size = 99999999  #C["s2_batch_size_val"]  Weirdly .fit() doesnt allow a generator for validation so read entire val set back into np arrays
+            self.take_frame = C["s2_val_take_frame"]   # -1 for calculate dynamically based on number of frames
+            self.restrictto = C["s2_val_restrictto"]
         elif subdir == "test":
             filepattern = C["s2_testtypes"]
             self.batch_size = C["s2_batch_size_test"]
+            self.take_frame = C["s2_test_take_frame"]   # -1 for calculate dynamically based on number of frames
+            self.restrictto = C["s2_test_restrictto"]
         else:
             assert True == False, f"FeaturesIn ERROR: Unknown subdir name {subdir}! Unable to proceed"
             
         patterns = ['*' + pattern + '.pkl' for pattern in filepattern]    
         self.filenames = cs760.list_files_multipatterns(self.input_dir, patterns)
+        
+        if self.restrictto != "":  # eliminate filenames not matching restrictto eg "__US" 
+            self.filenames = [f for f in self.filenames if f.upper().find(self.restrictto) != -1]
         
         if shuffle:
             rand_seed_all(C["s2_random_seed"])  #should now get same results when run with same random seed.
@@ -99,7 +108,6 @@ class Features_in(tf.keras.utils.Sequence):
 
         self.maxseqlen = C["s2_max_seq_len"]   # pad or truncate to this seq len
         self.num_classes = C["num_classes"]
-        self.take_frame = C["s2_take_frame"]   # -1 for calculate dynamically based on number of frames
         return
     
 
@@ -128,6 +136,47 @@ class Features_in(tf.keras.utils.Sequence):
         batch_y = np.array(self.labels[idx * self.batch_size:(idx + 1) * self.batch_size], dtype=np.float32)
         batch_y = tf.keras.utils.to_categorical(batch_y, self.num_classes)
         return batch_np, batch_y
+
+def output_perclass(C, m, gen, verbose=0):
+    """ Output predictions per class
+    """
+    preds = m.predict(  x = gen,
+                        verbose = 1,
+                        max_queue_size = 10,
+                        workers = 1,
+                        use_multiprocessing = False)
+
+    preds = preds.argmax(axis = 1)  # index of max value in each row is the predicted class
+    gt = gen.labels
+    correct_per_class = np.zeros((len(C["sign_classes"])), dtype = np.int32)
+    incorrect_per_class = np.zeros((len(C["sign_classes"])), dtype = np.int32)
+    for i in range(len(gt)):
+        if gt[i] == preds[i]:
+            correct_per_class[gt[i]] += 1
+        else:    
+            incorrect_per_class[gt[i]] += 1
+
+    print("Per-Class Predictions:")     
+    if verbose > 1:
+        for i in range(len(correct_per_class)):
+            if correct_per_class[i] + incorrect_per_class[i] > 0:   # exclude outputs for classes that don't exist in this dataset
+                print(f'{i} {C["sign_classes"][i]}   Correct: {correct_per_class[i]}   Incorrect: {incorrect_per_class[i]}   % Correct: {(correct_per_class[i] / (correct_per_class[i] + incorrect_per_class[i]))*100}')
+
+    correct_list = []        
+    incorrect_list = []    
+    for i in range(len(correct_per_class)):
+        if correct_per_class[i] + incorrect_per_class[i] > 0:   # exclude outputs for classes that don't exist in this dataset
+            if correct_per_class[i] >= 1:
+                correct_list.append(C["sign_classes"][i])
+            if incorrect_per_class[i] >= 1:
+                incorrect_list.append(C["sign_classes"][i])
+    print("#############################################################")
+    print(f"Classes with at least one INCORRECT: {incorrect_list}")
+    print("#############################################################")
+    print(f"Classes with at least one CORRECT: {correct_list}")
+    print("#############################################################")
+
+    return preds
 
 
 def plots(model):
@@ -160,16 +209,21 @@ def plots(model):
 def get_fc_model(C):
     """ Simple fully connected model
     """    
+    if C["s2_regularizer"] > 0.0:
+        regul = tf.keras.regularizers.L2(l2=C["s2_regularizer"])
+    else:
+        regul = None
+        
     m = tf.keras.Sequential([
             tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])) ,
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(C["cnn_feat_dim"]*C["s2_max_seq_len"] // 16, activation='relu'),
+            tf.keras.layers.Dense(C["cnn_feat_dim"]*C["s2_max_seq_len"] // 16, activation='relu', kernel_regularizer=regul),
             tf.keras.layers.Dropout(C["s2_dropout"]),
             tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dense((C["cnn_feat_dim"]*C["s2_max_seq_len"]) //16, activation='relu'),
+            tf.keras.layers.Dense((C["cnn_feat_dim"]*C["s2_max_seq_len"]) // 16, activation='relu', kernel_regularizer=regul),
             tf.keras.layers.Dropout(C["s2_dropout"]),
             tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dense((C["cnn_feat_dim"]*C["s2_max_seq_len"]) // 16, activation='relu'),
+            tf.keras.layers.Dense((C["cnn_feat_dim"]*C["s2_max_seq_len"]) // 16, activation='relu', kernel_regularizer=regul),
             tf.keras.layers.Dense(C["num_classes"], activation='softmax')     
     ])  
     
@@ -185,6 +239,11 @@ def get_fc_model(C):
 def get_transclassifier_model(C):
     """ Classifying Transformer model
     """    
+    if C["s2_regularizer"] > 0.0:
+        regul = tf.keras.regularizers.L2(l2=C["s2_regularizer"])
+    else:
+        regul = None
+        
     m = tf.keras.Sequential([
             tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])),
             model_transformer.TransformerEncoder(encoder_count=C["s2_encoder_count"],
@@ -326,26 +385,17 @@ if __name__ == '__main__':
     print(f"Evaluation: {evaluation}")
     print("#######################################################")
     print()
-    
-    testpreds = m.predict(x = testgen,
-                            verbose = 1,
-                            max_queue_size = 10,
-                            workers = 1,
-                            use_multiprocessing = False)
 
-    preds = testpreds.argmax(axis = 1)  # index of max value in each row is the predicted class
-    gt = testgen.labels
-    correct_per_class = np.zeros((len(C["sign_classes"])), dtype = np.int32)
-    incorrect_per_class = np.zeros((len(C["sign_classes"])), dtype = np.int32)
-    for i in range(len(gt)):
-        if gt[i] == preds[i]:
-            correct_per_class[gt[i]] += 1
-        else:    
-            incorrect_per_class[gt[i]] += 1
-    print("Per-Class Predictions on Test Set")     
-    for i in range(len(correct_per_class)):
-        if correct_per_class[i] + incorrect_per_class[i] > 0:
-            print(f'{i} {C["sign_classes"][i]}   Correct: {correct_per_class[i]}   Incorrect: {incorrect_per_class[i]}   % Correct: {(correct_per_class[i] / (correct_per_class[i] + incorrect_per_class[i]))*100}')
+
+    print("PER-CLASS PREDICTIONS ON TEST (NZSL):")
+    testpreds = output_perclass(C, m, gen=testgen, verbose=C["s2_verbose"])    
+    print()
+    print("#######################################################")    
+    print("PER-CLASS PREDICTIONS ON VAL (ASL):")
+    valpreds = output_perclass(C, m, gen=valgen, verbose=C["s2_verbose"])    
+
+
+    
 
 
 
