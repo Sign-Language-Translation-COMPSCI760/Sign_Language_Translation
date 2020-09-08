@@ -20,6 +20,10 @@ Usage: Run from models subdirectory.
     To run fully connected NN classifier:
         
     python stage2model.py config_dirs_yourname.json config760_fc1.json
+    
+    To run binary classifier to predict sign WORK-OUT:
+     
+    python stage2model.py config_dirs.json config760_binaryclassifier.json WORK-OUT    
 
 """
 
@@ -438,7 +442,7 @@ def train_eval_one_sign_binary(C):
                     max_queue_size = 10,
                     workers = 1,
                     use_multiprocessing = False)
-    plots(history)   
+    #plots(history)   
     best_epoch = np.argmax(history.history['val_accuracy'])  # history is zero-based but keras screen output 1st epoch is epoch 1
     print()
     print("#######################################################")
@@ -619,6 +623,7 @@ if __name__ == '__main__':
         pred_sign = sys.argv[3]     # sign to predict if binary classifier
         assert pred_sign in C["sign_classes"], "ERROR: Invalid sign to predict: {pred_sign}."
         C["curr_sign"] = pred_sign
+        print(f"TRAINING BINARY CLASSIFIER for sign {C['curr_sign']}")
         
     print("Running with parameters:", C)
     
