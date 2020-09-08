@@ -1,9 +1,9 @@
 {
-	"indir": "/home/tim/OneDrive/Documents/uni/760 Data Mining and Machine Learning/GroupProj/all signs/US",
-	"outdir": "/media/tim/dl3storage/Datasets/asllrp_features_aug/us_dict_vids",
+	"indir": "/media/tim/dl3storage/Datasets/asllrp",
+	"outdir": "/media/tim/dl3storage/Datasets/asllrp_features_final/train",
 	"ckpts" : "/media/tim/dl3storage/tmp",
 	"tensorboard" : "/media/tim/dl3storage/tmp",
-	"dict_pkls" : "/media/tim/dl3storage/Datasets/asllrp_features_aug",
+	"dict_pkls" : "/media/tim/dl3storage/Datasets/asllrp_features_final",
 	"test_set_dirs" : ["nz_vids"],
 	"val_set_dirs" : ["us_dict_vids"]
 }

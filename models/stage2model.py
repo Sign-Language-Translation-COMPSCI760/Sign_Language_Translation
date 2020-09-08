@@ -20,6 +20,10 @@ Usage: Run from models subdirectory.
     To run fully connected NN classifier:
         
     python stage2model.py config_dirs_yourname.json config760_fc1.json
+    
+    To run binary classifier to predict sign WORK-OUT:
+     
+    python stage2model.py config_dirs.json config760_binaryclassifier.json WORK-OUT    
 
 """
 
@@ -136,7 +140,7 @@ class Features_in(tf.keras.utils.Sequence):
                     self.filenames_positive.append(self.filenames[i])
                     self.labels_positive.append(self.labels[i])
             self.takepositives = int(np.floor(self.batch_size * C["s2_positives_ratio"]))        
-            self.takenegatives = int(np.ceil(self.batch_size * (1-C["s2_positives_ratio"])))        
+            self.takenegatives = self.batch_size - self.takepositives     #int(np.ceil(self.batch_size * (1-C["s2_positives_ratio"])))        
             assert self.takepositives + self.takenegatives == self.batch_size, f"ERROR: invalid s2_positives_ratio {C['s2_positives_ratio']} relative to batch size {self.batch_size}"        
 
         self.maxseqlen = C["s2_max_seq_len"]   # pad or truncate to this seq len
@@ -438,7 +442,7 @@ def train_eval_one_sign_binary(C):
                     max_queue_size = 10,
                     workers = 1,
                     use_multiprocessing = False)
-    plots(history)   
+    #plots(history)   
     best_epoch = np.argmax(history.history['val_accuracy'])  # history is zero-based but keras screen output 1st epoch is epoch 1
     print()
     print("#######################################################")
@@ -462,7 +466,8 @@ def train_eval_one_sign_binary(C):
     valpreds, valstats = output_perclass_binary(C, m, gen=valgen)
     print("PREDICTIONS ON TEST (NZSL):")
     testpreds, teststats = output_perclass_binary(C, m, gen=testgen)
-    del m
+    tf.keras.backend.clear_session()  #TODO doesnt work
+    #del m
     return testpreds, teststats, valpreds, valstats
     
 
@@ -613,6 +618,13 @@ if __name__ == '__main__':
     print(f'USING CONFIG FILES: config dirs:{config_dirs_file}  main config:{config_file}')
     
     C = cs760.loadas_json(config_file)
+    assert C["s2_classifier_type"] in ['softmax', 'sigmoid'], f"ERROR Invalid s2_classifier_type {C['s2_classifier_type']}. Must be one of 'softmax' or 'sigmoid'."
+    if C["s2_classifier_type"] == 'sigmoid':
+        pred_sign = sys.argv[3]     # sign to predict if binary classifier
+        assert pred_sign in C["sign_classes"], "ERROR: Invalid sign to predict: {pred_sign}."
+        C["curr_sign"] = pred_sign
+        print(f"TRAINING BINARY CLASSIFIER for sign {C['curr_sign']}")
+        
     print("Running with parameters:", C)
     
     Cdirs = cs760.loadas_json(config_dirs_file)
@@ -633,8 +645,11 @@ if __name__ == '__main__':
     if C["s2_classifier_type"] == 'softmax':
         testpreds, valpreds = train_eval_softmax(C)
     else:
-        testpreds, valpreds = train_eval_binary(C)
-
+        #testpreds, valpreds = train_eval_binary(C)  #tf throws OOM when try to reload the model so have to do it one sign at a time
+        testpreds, (TP,TN,FP,FN), valpreds, (TP_val,TN_val,FP_val,FN_val) = train_eval_one_sign_binary(C)
+        datastr = C["curr_sign"] + "," + "test_TPTNFPFN," + str(TP) + "," + str(TN) + "," + str(FP) + "," + str(FN) + ",val_TPTNFPFN," + str(TP_val) + "," + str(TN_val) + "," + str(FP_val) + "," + str(FN_val)
+        with open('binary_classifier_results.txt', 'a') as f:
+            charswritten = f.write(datastr)
     
 
 
