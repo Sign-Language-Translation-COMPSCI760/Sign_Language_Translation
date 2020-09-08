@@ -78,7 +78,14 @@ To actually run training/eval:
 	"s2_traintypes": ["__TOP", "__BOT", "__HFLIP"],   # Add remove augmentation types (see above list) that will be trained on
 	"s2_valtypes": ["__TOP"],                         # aug types to validate on - generally keep to __TOP
 	"s2_testtypes": ["__TOP"],                        # aug   "    "  test    "      "        "    "  "
+	"s2_train_restrictto" : "__US",			  # if "s2_restrictto_ornot" : false then don't include files with __US in their name (ASL dict vids)
+	"s2_val_restrictto" : "",
+	"s2_test_restrictto" : "",
+	"s2_restrictto_ornot" : false,
 	"s2_model_type" : "fc1",                          # "fc1" for fully connected model or "tc1" for transformer model
+	"s2_classifier_type" : "softmax",                 # 'softmax' for 70 class classifier, 'sigmoid' for binary classifier
+	"s2_classifier_thresh" : 0.5,                     # binary classifier threshold value: > this predicts positive class, < predicts negative class 
+	"s2_positives_ratio" : 0.6,  # ratio of positive class to negative class samples to select for training (without this, massive class imbalance to negs)
 	"s2_batch_size_train": 10,                        # training batch size
 	"s2_batch_size_val": 10,                          # val bs
 	"s2_batch_size_test": 10,                         # test bs
@@ -86,6 +93,7 @@ To actually run training/eval:
 	"s2_take_frame" : -1,           # if -1, will calculate how many frames to skip over in each input sample to cover the whole vid but with s2_max_seq_len frames.
                                   # if > 1 the fixed number of frames to skip over
 	"s2_dropout" : 0.1,             # dropout percentage
+	"s2_regularizer" : 0.005,       # l2 regularization amount for fc layers
 	"s2_min_lr" : 0.000001,         # min learning rate - stops when hits this
 	"s2_patience" : 6,              # the number of epochs to run without improvement before reducing the learning rate
 	"s2_factor" : 0.5,              # the factor to reduce the lr by after s2_patience is exhausted
@@ -97,9 +105,4 @@ To actually run training/eval:
 	"s2_random_seed" : 42,          # Running with this random seed (and same other parameters) should produce identical results. Only use 42 and 101
 	"s2_add_pos_enc" : true,        # Transformer model only - add positional encoding (got much worse results with this off)
 	"s2_encoder_count" : 2,         # Transformer only - number of Encoder layers
-
-
-
-
-
 
