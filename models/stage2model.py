@@ -647,7 +647,7 @@ if __name__ == '__main__':
     else:
         #testpreds, valpreds = train_eval_binary(C)  #tf throws OOM when try to reload the model so have to do it one sign at a time
         testpreds, (TP,TN,FP,FN), valpreds, (TP_val,TN_val,FP_val,FN_val) = train_eval_one_sign_binary(C)
-        datastr = C["curr_sign"] + "," + "test_TPTNFPFN," + str(TP) + "," + str(TN) + "," + str(FP) + "," + str(FN) + ",val_TPTNFPFN," + str(TP_val) + "," + str(TN_val) + "," + str(FP_val) + "," + str(FN_val)
+        datastr = C["curr_sign"] + "," + "test_TPTNFPFN," + str(TP) + "," + str(TN) + "," + str(FP) + "," + str(FN) + ",val_TPTNFPFN," + str(TP_val) + "," + str(TN_val) + "," + str(FP_val) + "," + str(FN_val) + '\n'
         with open('binary_classifier_results.txt', 'a') as f:
             charswritten = f.write(datastr)
     
