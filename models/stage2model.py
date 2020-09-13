@@ -382,7 +382,7 @@ def get_transclassifier_model(C):
                 tf.keras.layers.BatchNormalization(),   #less variation when this line is here but don't get the really good accuracies (0.5)
                 tf.keras.layers.Dense(num_classes, activation=C["s2_classifier_type"])     
         ])  
-    else:   #tc2
+    elif C["s2_model_type"] == 'tc2':   #tc2
         m = tf.keras.Sequential([
                 tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["s2_pad_to"], 1)),
                 tf.keras.layers.Conv2D(1, C["s2_kernel_size"], strides=C["s2_strides"], activation='relu', kernel_regularizer=regul),
@@ -396,7 +396,22 @@ def get_transclassifier_model(C):
                 tf.keras.layers.Flatten(),
                 tf.keras.layers.BatchNormalization(),   #less variation when this line is here but don't get the really good accuracies (0.5)
                 tf.keras.layers.Dense(num_classes, activation=C["s2_classifier_type"])     
+        ]) 
+    else:  # tc3
+        m = tf.keras.Sequential([
+                tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])),
+                tf.keras.layers.Dense(C["s2_emb_dim"], activation='relu', kernel_regularizer=regul),  # preudo embedding dim. Note inputting eg [bs=10, seqlen=32, 2560] into this dense layer will output [10, 32, emb_dim]
+                model_transformer.TransformerEncoder(encoder_count=C["s2_encoder_count"],
+                                                     attention_head_count=8, 
+                                                     d_model=C["s2_emb_dim"], 
+                                                     dropout_prob=C["s2_dropout"], 
+                                                     add_pos_enc=C["s2_add_pos_enc"],
+                                                     regul=regul),
+                tf.keras.layers.Flatten(),
+                tf.keras.layers.BatchNormalization(),   #less variation when this line is here but don't get the really good accuracies (0.5)
+                tf.keras.layers.Dense(num_classes, activation=C["s2_classifier_type"])     
         ])  
+            
             
                 
     
@@ -549,7 +564,7 @@ def train_eval_softmax(C):
 
     if C["s2_model_type"] == "fc1":
         m = get_fc_model(C)
-    elif C["s2_model_type"] in ["tc1","tc2"]:
+    elif C["s2_model_type"] in ["tc1","tc2", "tc3"]:
         m = get_transclassifier_model(C)
     else:
         assert True==False, f"ERROR: Unknown s2_model_type in config file: {C['s2_model_type']}. Must be one of fc1 or tc1"
