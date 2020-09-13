@@ -400,7 +400,8 @@ def get_transclassifier_model(C):
     else:  # tc3
         m = tf.keras.Sequential([
                 tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])),
-                tf.keras.layers.Dense(C["s2_emb_dim"], activation='relu', kernel_regularizer=regul),  # preudo embedding dim. Note inputting eg [bs=10, seqlen=32, 2560] into this dense layer will output [10, 32, emb_dim]
+                tf.keras.layers.Dense(C["s2_emb_dim"], activation='relu', kernel_regularizer=regul),  # pseudo embedding dim. Note inputting eg [bs=10, seqlen=32, 2560] into this dense layer will output [10, 32, emb_dim]
+#                tf.keras.layers.Dropout(C["s2_dropout"]),
                 model_transformer.TransformerEncoder(encoder_count=C["s2_encoder_count"],
                                                      attention_head_count=8, 
                                                      d_model=C["s2_emb_dim"], 

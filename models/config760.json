@@ -10,7 +10,7 @@
 	"crop_by_res": {"368-480": [60, 5, 420, 365], "360-640": [145, 10, 495, 360], "240-320": [0, 0, 320, 240], "480-640": [0, 0, 640, 480]},
 	"augmentation_chance": [1],
 	"augmentation_type": ["__HFLIP", "__ROTAT", "__CROP", "__BRIGHT", "__HUE", "__SATUR", "__CONTOUR", "__NOISE", "__INVERT"],
-	"s2_traintypes": ["__TOP","__HFLIP", "__ROTAT", "__CROP", "__BRIGHT", "__HUE", "__SATUR", "__NOISE", "__INVERT"],
+	"s2_traintypes": ["__TOP", "__INVERT"],
 	"s2_valtypes": ["__TOP"],
 	"s2_testtypes": ["__TOP"],
 	"s2_train_restrictto" : "__US",
