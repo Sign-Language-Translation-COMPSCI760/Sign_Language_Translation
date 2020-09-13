@@ -28,7 +28,8 @@ class TransformerEncoder(tf.keras.layers.Layer):
                  d_model=2560,
                  d_point_wise_ff=2048,
                  dropout_prob=0.1,
-                 add_pos_enc=True):
+                 add_pos_enc=True,
+                 regul=None):
         super(TransformerEncoder, self).__init__()
 
         # model hyper parameter variables
@@ -38,6 +39,7 @@ class TransformerEncoder(tf.keras.layers.Layer):
         self.d_point_wise_ff = d_point_wise_ff
         self.dropout_prob = dropout_prob
         self.add_pos_enc = add_pos_enc
+        self.regul = regul
 
         if self.add_pos_enc:
             self.pos_enc = PosEncoderLayer(d_model)
@@ -48,7 +50,7 @@ class TransformerEncoder(tf.keras.layers.Layer):
                 attention_head_count,
                 d_model,
                 d_point_wise_ff,
-                dropout_prob
+                dropout_prob, regul=regul
             ) for _ in range(encoder_count)
         ]
         #self.linear = tf.keras.layers.Dense(C["num_classes"], activation='softmax')
@@ -57,7 +59,9 @@ class TransformerEncoder(tf.keras.layers.Layer):
              inputs,
              training
              ):
-        
+        if len(inputs.shape) == 4:
+            inputs = tf.keras.backend.squeeze(inputs, axis=-1)  # needed to add extra dim for conv layer so remove here
+            
         if self.add_pos_enc:
             inputs = self.pos_enc(inputs)
         encoder_tensor = self.encoder_input_dropout(inputs, training=training)
@@ -142,7 +146,7 @@ class Transformer(tf.keras.Model):
 
 
 class EncoderLayer(tf.keras.layers.Layer):
-    def __init__(self, attention_head_count, d_model, d_point_wise_ff, dropout_prob):
+    def __init__(self, attention_head_count, d_model, d_point_wise_ff, dropout_prob, regul=None):
         super(EncoderLayer, self).__init__()
 
         # model hyper parameter variables
@@ -150,6 +154,7 @@ class EncoderLayer(tf.keras.layers.Layer):
         self.d_model = d_model
         self.d_point_wise_ff = d_point_wise_ff
         self.dropout_prob = dropout_prob
+        self.regul = regul
 
         self.multi_head_attention = MultiHeadAttention(attention_head_count, d_model)
         self.dropout_1 = tf.keras.layers.Dropout(dropout_prob)
@@ -157,7 +162,7 @@ class EncoderLayer(tf.keras.layers.Layer):
 
         self.position_wise_feed_forward_layer = PositionWiseFeedForwardLayer(
             d_point_wise_ff,
-            d_model
+            d_model, regul=regul
         )
         self.dropout_2 = tf.keras.layers.Dropout(dropout_prob)
         self.layer_norm_2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
@@ -225,10 +230,10 @@ class DecoderLayer(tf.keras.layers.Layer):
 
 
 class PositionWiseFeedForwardLayer(tf.keras.layers.Layer):
-    def __init__(self, d_point_wise_ff, d_model):
+    def __init__(self, d_point_wise_ff, d_model, regul=None):
         super(PositionWiseFeedForwardLayer, self).__init__()
-        self.w_1 = tf.keras.layers.Dense(d_point_wise_ff)
-        self.w_2 = tf.keras.layers.Dense(d_model)
+        self.w_1 = tf.keras.layers.Dense(d_point_wise_ff, kernel_regularizer=regul)
+        self.w_2 = tf.keras.layers.Dense(d_model, kernel_regularizer=regul)
 
     def call(self, inputs):
         inputs = self.w_1(inputs)

@@ -26,7 +26,6 @@ Usage: Run from models subdirectory.
     python stage2model.py config_dirs.json config760_binaryclassifier.json WORK-OUT    
 
 """
-
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,6 +36,7 @@ import random
 
 import cs760
 import model_transformer
+
 
 
 def rand_seed_all(seed=42):
@@ -188,8 +188,16 @@ class Features_in(tf.keras.utils.Sequence):
                 sample_padded = np.zeros((self.maxseqlen, self.C["cnn_feat_dim"]), dtype=np.float32)
                 sample_padded[0:sample.shape[0]] = sample
                 sample = sample_padded
+            if C["s2_model_type"] in ['tc2']:           # to make transformer work, need to pad input so conv layer outputs 2560
+                sample_padded = np.zeros((self.maxseqlen, self.C["s2_pad_to"]), dtype=np.float32)
+                sample_padded[:, 0:self.C["cnn_feat_dim"]] = sample
+                sample = sample_padded
+                    
             batch_list.append(sample)
-        batch_np = np.array(batch_list, dtype = np.float32)                        
+        batch_np = np.array(batch_list, dtype = np.float32)    
+        if C["s2_model_type"] in ['tc2']:           # to make conv work, need to add final dim
+            batch_np = np.expand_dims(batch_np, -1)
+                            
         if self.classifier_type == 'softmax':
             batch_y = tf.keras.utils.to_categorical(batch_y, self.num_classes)
         return batch_np, batch_y
@@ -360,20 +368,37 @@ def get_transclassifier_model(C):
         regul = tf.keras.regularizers.L2(l2=C["s2_regularizer"])
     else:
         regul = None
-        
-    m = tf.keras.Sequential([
-            tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])),
-            model_transformer.TransformerEncoder(encoder_count=C["s2_encoder_count"],
-                                                 attention_head_count=8, 
-                                                 d_model=C["cnn_feat_dim"], 
-                                                 dropout_prob=C["s2_dropout"], 
-                                                 add_pos_enc=C["s2_add_pos_enc"]),
-            tf.keras.layers.Flatten(),
-#            tf.keras.layers.Dropout(C["s2_dropout"]),
-            tf.keras.layers.BatchNormalization(),   #less variation when this line is here but don't get the really good accuracies (0.5)
-#            tf.keras.layers.Dense((2560*C["s2_max_seq_len"]) // 16, activation='relu'),
-            tf.keras.layers.Dense(num_classes, activation=C["s2_classifier_type"])     
-    ])  
+
+    if C["s2_model_type"] == 'tc1':   
+        m = tf.keras.Sequential([
+                tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])),
+                model_transformer.TransformerEncoder(encoder_count=C["s2_encoder_count"],
+                                                     attention_head_count=8, 
+                                                     d_model=C["cnn_feat_dim"], 
+                                                     dropout_prob=C["s2_dropout"], 
+                                                     add_pos_enc=C["s2_add_pos_enc"],
+                                                     regul=regul),
+                tf.keras.layers.Flatten(),
+                tf.keras.layers.BatchNormalization(),   #less variation when this line is here but don't get the really good accuracies (0.5)
+                tf.keras.layers.Dense(num_classes, activation=C["s2_classifier_type"])     
+        ])  
+    else:   #tc2
+        m = tf.keras.Sequential([
+                tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["s2_pad_to"], 1)),
+                tf.keras.layers.Conv2D(1, C["s2_kernel_size"], strides=C["s2_strides"], activation='relu', kernel_regularizer=regul),
+                tf.keras.layers.Dropout(C["s2_dropout"]),
+                model_transformer.TransformerEncoder(encoder_count=C["s2_encoder_count"],
+                                                     attention_head_count=8, 
+                                                     d_model=C["cnn_feat_dim"],       #C["cnn_feat_dim"], 
+                                                     dropout_prob=C["s2_dropout"], 
+                                                     add_pos_enc=C["s2_add_pos_enc"],
+                                                     regul=regul),
+                tf.keras.layers.Flatten(),
+                tf.keras.layers.BatchNormalization(),   #less variation when this line is here but don't get the really good accuracies (0.5)
+                tf.keras.layers.Dense(num_classes, activation=C["s2_classifier_type"])     
+        ])  
+            
+                
     
     opt = tf.keras.optimizers.Adam(learning_rate=C["s2_lr"])  # adam default = 0.001
     
@@ -510,7 +535,7 @@ def train_eval_softmax(C):
     tstbatch = traingen.__getitem__(0)
      # tuple
     print(type(tstbatch), tstbatch[0].shape, tstbatch[0].dtype)
-    print(tstbatch[1].shape, tstbatch[1].dtype)
+    print(tstbatch[1].shape, tstbatch[1].dtype)   # [bs, seq_len, feat_dim]
 
     valgen = Features_in(C, "val", shuffle=False)
     valdata = valgen.__getitem__(0)   
@@ -524,7 +549,7 @@ def train_eval_softmax(C):
 
     if C["s2_model_type"] == "fc1":
         m = get_fc_model(C)
-    elif C["s2_model_type"] == "tc1":
+    elif C["s2_model_type"] in ["tc1","tc2"]:
         m = get_transclassifier_model(C)
     else:
         assert True==False, f"ERROR: Unknown s2_model_type in config file: {C['s2_model_type']}. Must be one of fc1 or tc1"
