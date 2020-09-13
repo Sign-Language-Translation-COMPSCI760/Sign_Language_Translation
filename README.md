@@ -82,7 +82,7 @@ To actually run training/eval:
 	"s2_val_restrictto" : "",
 	"s2_test_restrictto" : "",
 	"s2_restrictto_ornot" : false,
-	"s2_model_type" : "fc1",                          # "fc1" for fully connected model or "tc1" for transformer model
+	"s2_model_type" : "fc1",                          # "fc1" for fully connected model or "tc1", "tc2" or "tc3" for transformer models 
 	"s2_classifier_type" : "softmax",                 # 'softmax' for 70 class classifier, 'sigmoid' for binary classifier
 	"s2_classifier_thresh" : 0.5,                     # binary classifier threshold value: > this predicts positive class, < predicts negative class 
 	"s2_positives_ratio" : 0.6,  # ratio of positive class to negative class samples to select for training (without this, massive class imbalance to negs)
