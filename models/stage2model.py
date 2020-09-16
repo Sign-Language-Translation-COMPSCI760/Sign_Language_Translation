@@ -33,6 +33,7 @@ import sys
 import os
 import copy
 import random
+from functools import partial
 
 import cs760
 import model_transformer
@@ -398,16 +399,30 @@ def get_transclassifier_model(C):
                 tf.keras.layers.Dense(num_classes, activation=C["s2_classifier_type"])     
         ]) 
     else:  # tc3
+        if C.get("s2_tc_activation") is None:
+            C["s2_tc_activation"] = 'relu'
+            print(f"USING DEFAULT RELU")
+        if C["s2_tc_activation"] == 'relu':
+            activ = tf.keras.activations.relu
+        elif C["s2_tc_activation"] == 'selu':
+            activ = tf.keras.activations.selu
+        elif C["s2_tc_activation"] == 'leaky_relu':
+            activ = partial(tf.keras.activations.relu, alpha=0.2)
+        elif C["s2_tc_activation"] == 'elu':
+            activ = tf.keras.activations.elu
+        elif C["s2_tc_activation"] == 'swish':
+            activ = tf.keras.activations.swish
+        print(f"USING ACTIVATION FN {C['s2_tc_activation']}")    
         m = tf.keras.Sequential([
                 tf.keras.layers.Input(shape=(C["s2_max_seq_len"], C["cnn_feat_dim"])),
-                tf.keras.layers.Dense(C["s2_emb_dim"], activation='relu', kernel_regularizer=regul),  # pseudo embedding dim. Note inputting eg [bs=10, seqlen=32, 2560] into this dense layer will output [10, 32, emb_dim]
+                tf.keras.layers.Dense(C["s2_emb_dim"], activation=activ, kernel_regularizer=regul),  # pseudo embedding dim. Note inputting eg [bs=10, seqlen=32, 2560] into this dense layer will output [10, 32, emb_dim]
 #                tf.keras.layers.Dropout(C["s2_dropout"]),
                 model_transformer.TransformerEncoder(encoder_count=C["s2_encoder_count"],
                                                      attention_head_count=8, 
                                                      d_model=C["s2_emb_dim"], 
                                                      dropout_prob=C["s2_dropout"], 
                                                      add_pos_enc=C["s2_add_pos_enc"],
-                                                     regul=regul),
+                                                     regul=regul, activ=C["s2_tc_activation"]),
                 tf.keras.layers.Flatten(),
                 tf.keras.layers.BatchNormalization(),   #less variation when this line is here but don't get the really good accuracies (0.5)
                 tf.keras.layers.Dense(num_classes, activation=C["s2_classifier_type"])     
