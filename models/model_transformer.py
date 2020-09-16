@@ -29,7 +29,8 @@ class TransformerEncoder(tf.keras.layers.Layer):
                  d_point_wise_ff=2048,
                  dropout_prob=0.1,
                  add_pos_enc=True,
-                 regul=None):
+                 regul=None,
+                 activ=None):
         super(TransformerEncoder, self).__init__()
 
         # model hyper parameter variables
@@ -40,6 +41,9 @@ class TransformerEncoder(tf.keras.layers.Layer):
         self.dropout_prob = dropout_prob
         self.add_pos_enc = add_pos_enc
         self.regul = regul
+        self.activ = activ
+        if self.activ is None:
+            self.activ = 'relu'
 
         if self.add_pos_enc:
             self.pos_enc = PosEncoderLayer(d_model)
@@ -50,7 +54,7 @@ class TransformerEncoder(tf.keras.layers.Layer):
                 attention_head_count,
                 d_model,
                 d_point_wise_ff,
-                dropout_prob, regul=regul
+                dropout_prob, regul=regul, activ=self.activ
             ) for _ in range(encoder_count)
         ]
         #self.linear = tf.keras.layers.Dense(C["num_classes"], activation='softmax')
@@ -146,7 +150,7 @@ class Transformer(tf.keras.Model):
 
 
 class EncoderLayer(tf.keras.layers.Layer):
-    def __init__(self, attention_head_count, d_model, d_point_wise_ff, dropout_prob, regul=None):
+    def __init__(self, attention_head_count, d_model, d_point_wise_ff, dropout_prob, regul=None, activ='relu'):
         super(EncoderLayer, self).__init__()
 
         # model hyper parameter variables
@@ -162,7 +166,7 @@ class EncoderLayer(tf.keras.layers.Layer):
 
         self.position_wise_feed_forward_layer = PositionWiseFeedForwardLayer(
             d_point_wise_ff,
-            d_model, regul=regul
+            d_model, regul=regul, activ=activ
         )
         self.dropout_2 = tf.keras.layers.Dropout(dropout_prob)
         self.layer_norm_2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
@@ -230,14 +234,25 @@ class DecoderLayer(tf.keras.layers.Layer):
 
 
 class PositionWiseFeedForwardLayer(tf.keras.layers.Layer):
-    def __init__(self, d_point_wise_ff, d_model, regul=None):
+    def __init__(self, d_point_wise_ff, d_model, regul=None, activ='relu'):
         super(PositionWiseFeedForwardLayer, self).__init__()
+        self.activ = activ
         self.w_1 = tf.keras.layers.Dense(d_point_wise_ff, kernel_regularizer=regul)
         self.w_2 = tf.keras.layers.Dense(d_model, kernel_regularizer=regul)
+        
 
     def call(self, inputs):
         inputs = self.w_1(inputs)
-        inputs = tf.nn.relu(inputs)
+        if self.activ == 'relu':
+            inputs = tf.nn.relu(inputs)
+        elif self.activ == 'selu':
+            inputs = tf.nn.selu(inputs)
+        elif self.activ == 'leaky_relu':
+            inputs = tf.nn.leaky_relu(inputs)
+        elif self.activ == 'elu':
+            inputs = tf.nn.elu(inputs)
+        elif self.activ == 'swish':
+            inputs = tf.nn.swish(inputs)
         return self.w_2(inputs)
 
 
