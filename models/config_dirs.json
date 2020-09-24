@@ -3,7 +3,7 @@
 	"outdir": "/media/tim/dl3storage/Datasets/asllrp_features_final/train",
 	"ckpts" : "/media/tim/dl3storage/tmp",
 	"tensorboard" : "/media/tim/dl3storage/tmp",
-	"dict_pkls" : "/media/tim/dl3storage/Datasets/asllrp_features_final",
+	"dict_pkls" : "/media/tim/dl3storage/Datasets/asllrp_features_final2",
 	"test_set_dirs" : ["nz_vids"],
 	"val_set_dirs" : ["us_dict_vids"]
 }
