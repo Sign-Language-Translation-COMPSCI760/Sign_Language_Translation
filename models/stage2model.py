@@ -80,16 +80,22 @@ class Features_in(tf.keras.utils.Sequence):
             self.batch_size = C["s2_batch_size_train"]
             self.take_frame = C["s2_train_take_frame"]   # -1 for calculate dynamically based on number of frames
             self.restrictto = C["s2_train_restrictto"]
+            self.trunc_begin = C["s2_train_trunc_begin"]
+            self.trunc_end = C["s2_train_trunc_end"]
         elif subdir == "val":
             filepattern = C["s2_valtypes"]
             self.batch_size = 99999999  #C["s2_batch_size_val"]  Weirdly .fit() doesnt allow a generator for validation so read entire val set back into np arrays
             self.take_frame = C["s2_val_take_frame"]   # -1 for calculate dynamically based on number of frames
             self.restrictto = C["s2_val_restrictto"]
+            self.trunc_begin = C["s2_valtest_trunc_begin"]
+            self.trunc_end = C["s2_valtest_trunc_end"]
         elif subdir == "test":
             filepattern = C["s2_testtypes"]
             self.batch_size = C["s2_batch_size_test"]
             self.take_frame = C["s2_test_take_frame"]   # -1 for calculate dynamically based on number of frames
             self.restrictto = C["s2_test_restrictto"]
+            self.trunc_begin = C["s2_valtest_trunc_begin"]
+            self.trunc_end = C["s2_valtest_trunc_end"]
         else:
             assert True == False, f"FeaturesIn ERROR: Unknown subdir name {subdir}! Unable to proceed"
             
@@ -178,10 +184,20 @@ class Features_in(tf.keras.utils.Sequence):
         batch_list = []        
         for file in batch_x:
             sample = cs760.loadas_pickle(os.path.join(self.input_dir, file))
+            skip_begin = 0
+            skip_end = 0                                  # skip beginning and/or ending frames
+            if self.trunc_begin >= 0.0:
+                skip_begin = int(sample.shape[0] * self.trunc_begin)
+            if self.trunc_end >= 0.0:
+                skip_end = int(sample.shape[0] * self.trunc_end)
+            sample = sample[skip_begin:sample.shape[0]-skip_end]
+                
             if self.take_frame == -1:
                 take_frame = max(round(sample.shape[0] / self.maxseqlen), 1)
+            elif self.take_frame == -2:
+                take_frame = max(np.floor(sample.shape[0] / self.maxseqlen), 1)                
             else:
-                take_frame = self.take_frame
+                take_frame = self.take_frame    
             sample = sample[0::take_frame]                # only take every nth frame
             if sample.shape[0] > self.maxseqlen:          # truncate features to maxseqlen
                 sample = sample[0:self.maxseqlen]
@@ -215,6 +231,7 @@ def output_perclass(C, m, gen, verbose=0):
 
     preds = preds.argmax(axis = 1)  # index of max value in each row is the predicted class
     gt = gen.labels
+
     correct_per_class = np.zeros((len(C["sign_classes"])), dtype = np.int32)
     incorrect_per_class = np.zeros((len(C["sign_classes"])), dtype = np.int32)
     for i in range(len(gt)):
@@ -228,6 +245,8 @@ def output_perclass(C, m, gen, verbose=0):
         for i in range(len(correct_per_class)):
             if correct_per_class[i] + incorrect_per_class[i] > 0:   # exclude outputs for classes that don't exist in this dataset
                 print(f'{i} {C["sign_classes"][i]}   Correct: {correct_per_class[i]}   Incorrect: {incorrect_per_class[i]}   % Correct: {(correct_per_class[i] / (correct_per_class[i] + incorrect_per_class[i]))*100}')
+
+
 
     correct_list = []        
     incorrect_list = []    
@@ -243,7 +262,7 @@ def output_perclass(C, m, gen, verbose=0):
     print(f"Classes with at least one CORRECT: {correct_list}")
     print("#############################################################")
 
-    return preds
+    return preds, gt
 
 
 def output_perclass_binary(C, m, gen, verbose=0):
@@ -653,12 +672,12 @@ def train_eval_softmax(C):
 
 
     print("PER-CLASS PREDICTIONS ON TEST (NZSL):")
-    testpreds = output_perclass(C, m, gen=testgen, verbose=C["s2_verbose"])    
+    testpreds, testgt = output_perclass(C, m, gen=testgen, verbose=C["s2_verbose"])    
     print()
     print("#######################################################")    
     print("PER-CLASS PREDICTIONS ON VAL (BOSTON):")
-    valpreds = output_perclass(C, m, gen=valgen, verbose=C["s2_verbose"])
-    return testpreds, valpreds    
+    valpreds, valgt = output_perclass(C, m, gen=valgen, verbose=C["s2_verbose"])
+    return testpreds, testgt
     
 
 
@@ -699,7 +718,12 @@ if __name__ == '__main__':
 
     
     if C["s2_classifier_type"] == 'softmax':
-        testpreds, valpreds = train_eval_softmax(C)
+        testpreds, testgt = train_eval_softmax(C)
+        
+        # testgt = [19, 10, 12, 2, 43, 5, 55, 13, 57, 6, 1, 9, 66, 67, 33, 51, 39, 14, 35, 21, 53, 60, 24]
+        testpredlist = testpreds.tolist()
+        cs760.saveas_json(testpredlist, C["s2_file"])
+        
     else:
         #testpreds, valpreds = train_eval_binary(C)  #tf throws OOM when try to reload the model so have to do it one sign at a time
         testpreds, (TP,TN,FP,FN), valpreds, (TP_val,TN_val,FP_val,FN_val) = train_eval_one_sign_binary(C)
