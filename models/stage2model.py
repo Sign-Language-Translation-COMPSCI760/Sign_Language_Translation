@@ -2,13 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Aug 22 14:40:07 2020
-
 @author: tim
-
 Stage 2 Model
-
 Usage: Run from models subdirectory. 
-
     First take a copy of config_dirs.json as eg configdirs_yourname.json.
     Edit configdirs_yourname.json to set directories appropriately. 
     Particularly, set the "outdir" key to the root directory that train_val_test_split.py created /train /val and /test from. 
@@ -16,7 +12,6 @@ Usage: Run from models subdirectory.
     To run transformer classifier:
         
     python stage2model.py config_dirs_yourname.json config760.json
-
     To run fully connected NN classifier:
         
     python stage2model.py config_dirs_yourname.json config760_fc1.json
@@ -24,7 +19,6 @@ Usage: Run from models subdirectory.
     To run binary classifier to predict sign WORK-OUT:
      
     python stage2model.py config_dirs.json config760_binaryclassifier.json WORK-OUT    
-
 """
 import tensorflow as tf
 import numpy as np
@@ -108,6 +102,11 @@ class Features_in(tf.keras.utils.Sequence):
         else:        
             if self.restrictto != "":  # eliminate filenames matching restrictto eg "__US" 
                 self.filenames = [f for f in self.filenames if f.upper().find(self.restrictto) == -1]
+            if (subdir == "train") and (C["s2_train_restrict_videos"] > 0): # eliminate training files are represented more than C["s2_train_restrict_videos"] times
+                for i, filename in enumerate(self.filenames):
+                    current_file_index = filename.index('__')
+                    if (current_file_index > C["s2_train_restrict_videos"]):
+                        del self.filenames[i]
         
         if shuffle:
             rand_seed_all(C["s2_random_seed"])  #should now get same results when run with same random seed.
@@ -730,7 +729,3 @@ if __name__ == '__main__':
         datastr = C["curr_sign"] + "," + "test_TPTNFPFN," + str(TP) + "," + str(TN) + "," + str(FP) + "," + str(FN) + ",val_TPTNFPFN," + str(TP_val) + "," + str(TN_val) + "," + str(FP_val) + "," + str(FN_val) + '\n'
         with open('binary_classifier_results.txt', 'a') as f:
             charswritten = f.write(datastr)
-    
-
-
-

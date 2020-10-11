@@ -14,6 +14,7 @@
 	"s2_valtypes": ["__HFLIP", "__ROTAT", "__CROP", "__BRIGHT", "__HUE", "__SATUR", "__NOISE", "__INVERT"],
 	"s2_testtypes": ["__TOP"],
 	"s2_train_restrictto" : "__US",
+	"s2_train_restrict_videos" : 5,
 	"s2_val_restrictto" : "",
 	"s2_test_restrictto" : "",
 	"s2_restrictto_ornot" : false,
