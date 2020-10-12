@@ -103,14 +103,29 @@ class Features_in(tf.keras.utils.Sequence):
             if self.restrictto != "":  # eliminate filenames matching restrictto eg "__US" 
                 self.filenames = [f for f in self.filenames if f.upper().find(self.restrictto) == -1]
             if (subdir == "train") and (C["s2_train_restrict_videos"] > 0): # eliminate training files are represented more than C["s2_train_restrict_videos"] times
-                for i, filename in enumerate(self.filenames):
-                    current_file_index = filename.index('__')
-                    if (current_file_index > C["s2_train_restrict_videos"]):
-                        del self.filenames[i]
+                new_file_list = []
+                for i in range(len(self.filenames)): # Find the video representation number between start and end index
+                    current_sign_features = self.filenames[i]
+                    start_index = current_sign_features.find('__')
+                    end_index = current_sign_features[start_index + 2:].find('__')
+                    current_repersentation_number = int(current_sign_features[start_index + 2:start_index + 2 + end_index])
+                    if (current_repersentation_number <= C["s2_train_restrict_videos"]):
+                        new_file_list.append(current_sign_features)
+                self.filenames = new_file_list
         
+
         if shuffle:
             rand_seed_all(C["s2_random_seed"])  #should now get same results when run with same random seed.
             random.shuffle(self.filenames)
+
+
+        # Uncomment to check if there is sign features passing through that should have been removed
+        # if (subdir == "train"):
+        #    for i in range(len(self.filenames)):
+        #         start_index = self.filenames[i].find('__')
+        #         end_index = self.filenames[i][start_index + 2:].find('__')
+        #         if int(self.filenames[i][start_index + 2:start_index + 2 + end_index]) > C["s2_train_restrict_videos"]:
+        #             print(self.filenames[i][start_index + 2:start_index + 2 + end_index])
             
         labels = []
         for i, filename in enumerate(self.filenames):
