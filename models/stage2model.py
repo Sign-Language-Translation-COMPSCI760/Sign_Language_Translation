@@ -112,6 +112,16 @@ class Features_in(tf.keras.utils.Sequence):
                     if (current_repersentation_number <= C["s2_train_restrict_videos"]):
                         new_file_list.append(current_sign_features)
                 self.filenames = new_file_list
+            if (subdir == "train") and (C["s2_train_restrict_to_test"] == True): # Train only on feature files that correspond to the feature files found in the test set, 1 == True in the config file, 0 == false
+                new_file_list = []
+                for i in range(len(self.filenames)): # Find the video representation number between start and end index
+                    current_sign_features = self.filenames[i]
+                    start_index = current_sign_features.find('__')
+                    feature_name = current_sign_features[:start_index]
+                    print(feature_name)
+                    if feature_name in C["nzsl_signs"]:
+                        new_file_list.append(current_sign_features)
+                self.filenames = new_file_list
         
 
         if shuffle:

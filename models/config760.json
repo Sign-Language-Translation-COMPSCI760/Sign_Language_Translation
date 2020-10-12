@@ -15,6 +15,7 @@
 	"s2_testtypes": ["__TOP"],
 	"s2_train_restrictto" : "__US",
 	"s2_train_restrict_videos" : 5,
+	"s2_train_restrict_to_test" : 1,
 	"s2_val_restrictto" : "",
 	"s2_test_restrictto" : "",
 	"s2_restrictto_ornot" : false,
