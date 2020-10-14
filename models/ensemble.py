@@ -64,7 +64,17 @@ ensemblefiles = ['best55.json',
                  'new_bgremoved1_seq38_411_notrunc.json',
                  'new_bgremoved1_seq35_411_notrunc.json',
                  'new_bgremoved1_seq34_enc3_411_notrunc.json',
-                 'new_bgremoved1_seq32_enc3_411_notrunc.json']
+                 'new_bgremoved1_seq32_enc3_411_notrunc.json',
+                 'nobkgd__.json',
+                 'nobkgd_7vids_.json',
+                 'nobkgd_15vids_keep.json',
+                 'nobkgd_100vids_nzslonly.json',
+                 'nobkgd_10vids_nzslonly.json',
+                 #'nobkgd_10vids_nzslonly_repeat1.json',
+                 'nobkgd_10vids_nzslonly_enc3.json',
+                 #'nobkgd_10vids_nzslonly_enc3_repeat1.json',
+                 'nobkgd_10vids_nzslonly_enc3_dropout0.12.json',
+                 'nobkgd_10vids_nzslonly_enc3_dropout0.15.json']
 
 fulllist = []
 for file in ensemblefiles:
