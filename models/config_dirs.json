@@ -1,6 +1,6 @@
 {
-	"indir": "/home/tim/OneDrive/Documents/uni/760 Data Mining and Machine Learning/GroupProj/reuben processed videos",
-	"outdir": "/media/tim/dl3storage/Datasets/asllrp_features_final/test",
+	"indir": "/home/tim/OneDrive/Documents/uni/760 Data Mining and Machine Learning/GroupProj/NZSL processed videos/NZSL videos 480x360",
+	"outdir": "/media/tim/dl3storage/Datasets/asllrp_features_final/nz_bkgd_removed_v2",
 	"ckpts" : "/media/tim/dl3storage/tmp",
 	"tensorboard" : "/media/tim/dl3storage/tmp",
 	"dict_pkls" : "/media/tim/dl3storage/Datasets/asllrp_features_final",

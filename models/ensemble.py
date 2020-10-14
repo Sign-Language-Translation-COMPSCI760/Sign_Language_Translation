@@ -59,7 +59,12 @@ ensemblefiles = ['best55.json',
                  'best_0.3_111_55_1enctruly42.json',
                  'best_422.json',
                  'best_422_40.json',
-                 'best_0.34_111_55_1enc2_42.json']
+                 'best_0.34_111_55_1enc2_42.json',
+                 'new_bgremoved1_seq32_411_notrunc.json',
+                 'new_bgremoved1_seq38_411_notrunc.json',
+                 'new_bgremoved1_seq35_411_notrunc.json',
+                 'new_bgremoved1_seq34_enc3_411_notrunc.json',
+                 'new_bgremoved1_seq32_enc3_411_notrunc.json']
 
 fulllist = []
 for file in ensemblefiles:

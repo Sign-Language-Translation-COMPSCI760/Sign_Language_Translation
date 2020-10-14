@@ -9,17 +9,17 @@ Created on Sat Oct  3 14:03:30 2020
 import os
 import copy
 
-indir = "/media/tim/dl3storage/Datasets/asllrp_features_final/test"
+indir = "/media/tim/dl3storage/Datasets/asllrp_features_final/nz_bkgd_removed_v2"
 
 
 files_orig = os.listdir(indir)
 
 files_new = []
 
-#for file_orig in files_orig:
-#    #idx = file_orig.find('_')
-#    file_new = file_orig.replace('_','__', 1) 
-#    files_new.append(file_new)
+for file_orig in files_orig:
+    #idx = file_orig.find('_')
+    file_new = file_orig.replace('_','__', 1) 
+    files_new.append(file_new)
 
 
 signs = set()
