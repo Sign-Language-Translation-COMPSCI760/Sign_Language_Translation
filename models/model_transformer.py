@@ -60,7 +60,7 @@ class TransformerEncoder(tf.keras.layers.Layer):
         #self.linear = tf.keras.layers.Dense(C["num_classes"], activation='softmax')
 
     def call(self,
-             inputs,
+             inputs,      #[bs, seq_len, d_model=emb_dim]
              training
              ):
         if len(inputs.shape) == 4:
@@ -171,7 +171,7 @@ class EncoderLayer(tf.keras.layers.Layer):
         self.dropout_2 = tf.keras.layers.Dropout(dropout_prob)
         self.layer_norm_2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 
-    def call(self, inputs, mask, training):
+    def call(self, inputs, mask, training):   #[bs, seq_len, d_model=emb_dim]
         output, attention = self.multi_head_attention(inputs, inputs, inputs, mask)
         output = self.dropout_1(output, training=training)
         output = self.layer_norm_1(tf.add(inputs, output))  # residual network
@@ -317,6 +317,12 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 
 class ScaledDotProductAttention(tf.keras.layers.Layer):
+    """ if the shape of Q,K and V is (100, 512)
+        then the shape of matmul_q_and_transposed_k will be (100,100)
+        as will the shape after applying softmax. 
+        The shape of tf.matmul(attention_weight, value) will once again be (100,512) ie (100,100)(100,512) = (100,512)
+        
+    """
     def __init__(self, d_h):
         super(ScaledDotProductAttention, self).__init__()
         self.d_h = d_h
